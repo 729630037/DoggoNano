@@ -1,0 +1,13 @@
+critic_loss: 1.00335217e+10 actor_loss:  2015177.25 alpha_loss: -20.3506298
+critic_loss: 8.54236109e+09 actor_loss:  2021073 alpha_loss: -21.1299877
+critic_loss: 8.5454377e+09 actor_loss:  2016248.38 alpha_loss: -20.6906033
+critic_loss: 1.05140797e+10 actor_loss:  2020181.12 alpha_loss: -20.639637
+critic_loss: 8.69254861e+09 actor_loss:  2022959.25 alpha_loss: -20.839077
+critic_loss: 1.15308298e+10 actor_loss:  2010640.75 alpha_loss: -20.0389328
+critic_loss: 1.04656568e+10 actor_loss:  2.02692e+06 alpha_loss: -20.8649883
+critic_loss: 1.04716626e+10 actor_loss:  2015394.88 alpha_loss: -20.507412
+critic_loss: 8.30544538e+09 actor_loss:  2024818.75 alpha_loss: -20.4457703
+critic_loss: 8.82483917e+09 actor_loss:  2025408.25 alpha_loss: -20.7361012
+critic_loss: 1.07235195e+10 actor_loss:  2024635.62 alpha_loss: -20.4711666
+step = 0: AverageReturn = 0.406967, AverageEpisodeLength = 362.049988
+step = 5000: loss = 81.43927764892578
