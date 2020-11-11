@@ -1,25 +1,21 @@
 """Implements the gym environment of minitaur moving with trotting style.
 """
 import os, inspect,sys
-currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-parentdir = os.path.dirname(os.path.dirname(currentdir))
-#os.sys.path.insert(0, parentdir)
-
-if os.getcwd() not in sys.path:
-  sys.path.append(os.path.abspath(os.path.join(os.getcwd())))
-
 import math
 import time
+import random
+
 from gym import spaces
 import numpy as np
 from envs import minitaur_gym_env
+from envs.gait_planner import GaitPlanner 
+from envs.kinematics import Kinematics
 from envs.env_randomizers.minitaur_env_randomizer_from_config import MinitaurEnvRandomizerFromConfig
 from envs.env_randomizers.minitaur_push_randomizer import MinitaurPushRandomizer
 
 # TODO(tingnan): These constants should be moved to minitaur/minitaur_gym_env.
 NUM_LEGS = 4
 NUM_MOTORS = 2 * NUM_LEGS
-atime=time.time()
 
 class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
   """The trotting gym environment for the minitaur.
@@ -35,9 +31,10 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
 
   """
   metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 166}
-
+  load_ui = True
+  is_terminating = False
   def __init__(self,
-               urdf_version=None,
+               debug=False,
                control_time_step=0.001,
                action_repeat=1,
                control_latency=0.03,
@@ -54,58 +51,20 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
                hard_reset=False,
                env_randomizer=[MinitaurEnvRandomizerFromConfig,MinitaurPushRandomizer],
                log_path=None,
-               init_extension=2.1,    #2.0rad=114.59度
-               init_swing=0.0,
+               target_position=None,
+               backwards=None,
+               signal_type="ik",
                random_init_pose=False,
                step_frequency=2.0,
-               extension_amplitude=0.8,   #0.35rad=20.05度 0.3rad=17.19度
-               swing_amplitude=0.4,
+               init_theta=0.0,
+               init_gamma=1.4,
+               theta_amplitude=0.8,   #0.35rad=20.05度 0.3rad=17.19度
+               gamma_amplitude=0.4,
                terrain_type="random",
-               terrain_id='random',               
+               terrain_id='random',
+               mark='base'                              
                ):
-    """Initialize the minitaur trotting gym environment.
-
-    Args:
-      urdf_version: [DEFAULT_URDF_VERSION, DERPY_V0_URDF_VERSION,
-        RAINBOW_DASH_V0_URDF_VERSION] are allowable versions. If None,
-          DEFAULT_URDF_VERSION is used. Refer to minitaur_gym_env for more
-          details.
-      control_time_step: The time step between two successive control signals.
-      action_repeat: The number of simulation steps that an action is repeated.
-      control_latency: The latency between get_observation() and the actual
-        observation. See minituar.py for more details.
-      pd_latency: The latency used to get motor angles/velocities used to
-        compute PD controllers. See minitaur.py for more details.
-      on_rack: Whether to place the minitaur on rack. This is only used to debug
-        the walking gait. In this mode, the minitaur's base is hung midair so
-        that its walking gait is clearer to visualize.
-      motor_kp: The P gain of the motor.
-      motor_kd: The D gain of the motor.
-      remove_default_joint_damping: Whether to remove the default joint damping.
-      render: Whether to render the simulation.
-      num_steps_to_log: The max number of control steps in one episode. If the
-        number of steps is over num_steps_to_log, the environment will still
-        be running, but only first num_steps_to_log will be recorded in logging.
-      accurate_motor_model_enabled: Uses the nonlinear DC motor model if set to
-        True.
-      use_signal_in_observation: Includes the reference motor angles in the
-        observation vector.
-      use_angle_in_observation: Includes the measured motor angles in the
-        observation vector.
-      hard_reset: Whether to reset the whole simulation environment or just
-        reposition the robot.
-      env_randomizer: A list of EnvRandomizers that can randomize the
-        environment during when env.reset() is called and add perturbation
-        forces when env.step() is called.
-      log_path: The path to write out logs. For the details of logging, refer to
-        minitaur_logging.proto.
-      init_extension: The initial reset length of the leg.
-      init_swing: The initial reset swing position of the leg.
-      step_frequency: The desired leg stepping frequency.
-      extension_amplitude: The maximum leg extension change within a locomotion
-        cycle.
-      swing_amplitude: The maximum leg swing change within a cycle.
-    """
+    """Initialize the minitaur trotting gym environment."""
 
     # _swing_offset and _extension_offset is to mimick the bent legs. The
     # offsets will be added when applying the motor commands.
@@ -114,17 +73,19 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
     self._random_init_pose=random_init_pose
     # The reset position.
     self._init_pose = [
-        init_swing, init_swing, init_swing, init_swing, init_extension, init_extension,
-        init_extension, init_extension
+        init_theta, init_theta, init_theta, init_theta, init_gamma, init_gamma,
+        init_gamma, init_gamma
     ]
     self._flightPercent=0.5
     self._step_frequency = step_frequency
-    self._extension_amplitude = extension_amplitude
-    self._swing_amplitude = swing_amplitude
+    self._theta_amplitude = theta_amplitude
+    self._gamma_amplitude = gamma_amplitude
     self._use_signal_in_observation = use_signal_in_observation
     self._use_angle_in_observation = use_angle_in_observation
+    self._signal_type = signal_type
+
     super(MinitaurTrottingEnv,
-          self).__init__(urdf_version=urdf_version,
+          self).__init__(
                          accurate_motor_model_enabled=accurate_motor_model_enabled,
                          motor_overheat_protection=False,
                          motor_kp=motor_kp,
@@ -141,29 +102,220 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
                          control_time_step=control_time_step,
                          action_repeat=action_repeat,
                          terrain_id=terrain_id,
-                         terrain_type=terrain_type                       
+                         terrain_type=terrain_type,
+                         target_position=target_position,
+                         signal_type=signal_type,
+                         backwards=backwards,
+                         debug=debug,
+                         mark=mark
                          )
 
-    action_dim = NUM_LEGS * 2
-    action_high = np.array([0.25] * action_dim)
+    # (eventually) allow different feedback ranges/action spaces for different signals
+    action_max = {
+        'ik': 0.4,
+        'ol': 0.01
+    }
+    action_dim_map = {
+        'ik': 2,
+        'ol': 8
+    }
+    action_dim = action_dim_map[self._signal_type]
+    action_high = np.array([action_max[self._signal_type]] * action_dim)
     self.action_space = spaces.Box(-action_high, action_high)
     # For render purpose.
     self._cam_dist = 1.0
-    self._cam_yaw = 30
-    self._cam_pitch = -30
-    self._motor_pose=np.zeros(NUM_MOTORS)
+    self._cam_yaw = 0.0
+    self._cam_pitch = -20
+
+    self._gait_planner = GaitPlanner("trot")
+    self._kinematics = Kinematics()
+    self.goal_reached = False
+    self._stay_still = False
+    self.is_terminating = False
 
   def reset(self):
-    # In this environment, the actions are
-    # [swing leg 1, swing leg 2, swing leg 3, swing leg 4,
-    #  extension leg 1, extension leg 2, extension leg 3, extension leg 4]
     if self._random_init_pose==True:
       self._init_pose = np.random.uniform(np.array(self._init_pose) - np.array([0.08]*8) ,
                                           np.array(self._init_pose) + np.array([0.08]*8)) 
     initial_motor_angles = self._convert_from_leg_model(self._init_pose)
     super(MinitaurTrottingEnv, self).reset(initial_motor_angles=initial_motor_angles,
                                            reset_duration=0.5)
+    self.goal_reached = False
+    self.is_terminating = False
+    self._stay_still = False
+    if self._backwards is None:
+      self.backwards = random.choice([True, False])
+    else:
+      self.backwards = self._backwards
+    step = 0.6
+    period = 0.65
+    base_x = self._base_x
+    if self.backwards:
+        step = -.3
+        period = .5
+        base_x = .0
+    if not self._target_position or self._random_pos_target:
+        bound = -3 if self.backwards else 3
+        self._target_position = random.uniform(bound//2, bound)
+        self._random_pos_target = True
+    if self._is_render and self._signal_type == 'ik':
+        if self.load_ui:
+            self.setup_ui(base_x, step, period)
+            self.load_ui = False
+    if self._is_debug:
+        print(f"Target Position x={self._target_position}, Random assignment: {self._random_pos_target}, Backwards: {self.backwards}")        
+
     return self._get_observation()
+
+
+  def setup_ui(self, base_x, step, period):
+    self.base_x_ui = self._pybullet_client.addUserDebugParameter("base_x",
+                                                                  self._ranges["base_x"][0],
+                                                                  self._ranges["base_x"][1],
+                                                                  base_x)
+    self.base_y_ui = self._pybullet_client.addUserDebugParameter("base_y",
+                                                                  self._ranges["base_y"][0],
+                                                                  self._ranges["base_y"][1],
+                                                                  self._ranges["base_y"][2])
+    self.base_z_ui = self._pybullet_client.addUserDebugParameter("base_z",
+                                                                  self._ranges["base_z"][0],
+                                                                  self._ranges["base_z"][1],
+                                                                  self._ranges["base_z"][2])
+    self.roll_ui = self._pybullet_client.addUserDebugParameter("roll",
+                                                                self._ranges["roll"][0],
+                                                                self._ranges["roll"][1],
+                                                                self._ranges["roll"][2])
+    self.pitch_ui = self._pybullet_client.addUserDebugParameter("pitch",
+                                                                self._ranges["pitch"][0],
+                                                                self._ranges["pitch"][1],
+                                                                self._ranges["pitch"][2])
+    self.yaw_ui = self._pybullet_client.addUserDebugParameter("yaw",
+                                                              self._ranges["yaw"][0],
+                                                              self._ranges["yaw"][1],
+                                                              self._ranges["yaw"][2])
+    self.step_length_ui = self._pybullet_client.addUserDebugParameter("step_length", -0.7, 0.7, step)
+    self.step_rotation_ui = self._pybullet_client.addUserDebugParameter("step_rotation", -1.5, 1.5, 0.)
+    self.step_angle_ui = self._pybullet_client.addUserDebugParameter("step_angle", -180., 180., 0.)
+    self.step_period_ui = self._pybullet_client.addUserDebugParameter("step_period", 0.2, 0.9, period)
+
+  def _read_inputs(self, base_pos_coeff, gait_stage_coeff):
+      position = np.array(
+          [
+              self._pybullet_client.readUserDebugParameter(self.base_x_ui),
+              self._pybullet_client.readUserDebugParameter(self.base_y_ui) * base_pos_coeff,
+              self._pybullet_client.readUserDebugParameter(self.base_z_ui) * base_pos_coeff
+          ]
+      )
+      orientation = np.array(
+          [
+              self._pybullet_client.readUserDebugParameter(self.roll_ui) * base_pos_coeff,
+              self._pybullet_client.readUserDebugParameter(self.pitch_ui) * base_pos_coeff,
+              self._pybullet_client.readUserDebugParameter(self.yaw_ui) * base_pos_coeff
+          ]
+      )
+      step_length = self._pybullet_client.readUserDebugParameter(self.step_length_ui) * gait_stage_coeff
+      step_rotation = self._pybullet_client.readUserDebugParameter(self.step_rotation_ui)
+      step_angle = self._pybullet_client.readUserDebugParameter(self.step_angle_ui)
+      step_period = self._pybullet_client.readUserDebugParameter(self.step_period_ui)
+      return position, orientation, step_length, step_rotation, step_angle, step_period
+
+  def _check_target_position(self, t):
+      if self._target_position:
+          current_x = abs(self.minitaur.GetBasePosition()[0])
+          # give 0.15 stop space
+          if current_x >= abs(self._target_position) - 0.15:
+              self.goal_reached = True
+              if not self.is_terminating:
+                  self.end_time = t
+                  self.is_terminating = True
+
+  @staticmethod
+  def _evaluate_base_stage_coeff(current_t, end_t=0.0, width=0.001):
+      # sigmoid function
+      beta = p = width
+      if p - beta + end_t <= current_t <= p - (beta / 2) + end_t:
+          return (2 / beta ** 2) * (current_t - p + beta) ** 2
+      elif p - (beta/2) + end_t <= current_t <= p + end_t:
+          return 1 - (2 / beta ** 2) * (current_t - p) ** 2
+      else:
+          return 1
+
+  @staticmethod
+  def _evaluate_gait_stage_coeff(current_t, action, end_t=0.0):
+      # ramp function(斜坡函数)
+      p = 0.8 + action[0]
+      if end_t <= current_t <= p + end_t:
+          return current_t
+      else:
+          return 1.0
+
+  @staticmethod
+  def _evaluate_brakes_stage_coeff(current_t, action, end_t=0.0, end_value=0.0):
+      # ramp function
+      p = 0.8 + action[1]
+      if end_t <= current_t <= p + end_t:
+          return 1 - (current_t - end_t)
+      else:
+          return end_value
+
+  def _signal(self, t, action):
+      if self._signal_type == 'ik':
+          return self._IK_signal(t, action)
+      if self._signal_type == 'ol':
+          return self._open_loop_signal(t, action)
+
+  def _IK_signal(self, t, action):
+      base_pos_coeff = self._evaluate_base_stage_coeff(t, width=1.5)
+      gait_stage_coeff = self._evaluate_gait_stage_coeff(t, action)
+      step = 0.6
+      period = 0.65
+      base_x = self._base_x
+      if self.backwards:
+          step = -.3
+          period = .5
+          base_x = .0
+      if self._is_render and self._is_debug:
+          position, orientation, step_length, step_rotation, step_angle, step_period = \
+              self._read_inputs(base_pos_coeff, gait_stage_coeff)
+      else:
+          position = np.array([base_x,
+                                self._base_y * base_pos_coeff,
+                                self._base_z * base_pos_coeff])
+          orientation = np.array([self._base_roll * base_pos_coeff,
+                                  self._base_pitch * base_pos_coeff,
+                                  self._base_yaw * base_pos_coeff])
+          step_length = (self.step_length if self.step_length is not None else step) * gait_stage_coeff
+          step_rotation = (self.step_rotation if self.step_rotation is not None else 0.0)
+          step_angle = self.step_angle if self.step_angle is not None else 0.0
+          step_period = (self.step_period if self.step_period is not None else period)
+      if self.goal_reached:
+          brakes_coeff = self._evaluate_brakes_stage_coeff(t, action, self.end_time)
+          step_length *= brakes_coeff
+          if brakes_coeff == 0.0:
+              self._stay_still = True
+      direction = -1.0 if step_length < 0 else 1.0
+      frames = self._gait_planner.loop(step_length, step_angle, step_rotation, step_period, direction)
+      fr_angles, fl_angles, rr_angles, rl_angles, _ = self._kinematics.solve(orientation, position, frames)
+      signal = [
+          fl_angles[0], fl_angles[1], fl_angles[2],
+          fr_angles[0], fr_angles[1], fr_angles[2],
+          rl_angles[0], rl_angles[1], rl_angles[2],
+          rr_angles[0], rr_angles[1], rr_angles[2]
+      ]
+      return signal
+
+  def _open_loop_signal(self, t, action):
+
+    # Generates the leg trajectories for the two digonal pair of legs.
+    ext_first_pair, sw_first_pair = self._gen_signal(t, 0)
+    ext_second_pair, sw_second_pair = self._gen_signal(t, 0.5)
+
+    trotting_signal = np.array([
+        sw_first_pair, sw_second_pair, sw_second_pair, sw_first_pair, ext_first_pair,
+        ext_second_pair, ext_second_pair, ext_first_pair
+    ]) 
+    signal = np.array(self._init_pose) + trotting_signal
+    return signal
 
   def _convert_from_leg_model(self, leg_pose):
     """Converts leg space action into motor commands.
@@ -212,7 +364,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
         swing = self._swing_amplitude * math.cos(math.pi*percentBack+math.pi) 
     return extension, swing
 
-  def _signal(self, t):
+  def _signal(self, t, action):
     """Generates the trotting gait for the robot.
 
     Args:
@@ -226,18 +378,12 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
       sw_second_pair,ext_second_pair  1   3   sw_first_pair,ext_first_pair
 
     """
-    # Generates the leg trajectories for the two digonal pair of legs.
-    ext_first_pair, sw_first_pair = self._gen_signal(t, 0)
-    ext_second_pair, sw_second_pair = self._gen_signal(t, 0.5)
+    if self._signal_type == 'ik':
+        return self._IK_signal(t, action)
+    if self._signal_type == 'ol':
+        return self._open_loop_signal(t, action)
 
-    trotting_signal = np.array([
-        sw_first_pair, sw_second_pair, sw_second_pair, sw_first_pair, ext_first_pair,
-        ext_second_pair, ext_second_pair, ext_first_pair
-    ]) 
-    signal = np.array(self._init_pose) + trotting_signal
-    return signal
-
-  def _transform_action_to_motor_command(self, action,time):
+  def _transform_action_to_motor_command(self, action,t):
     """Generates the motor commands for the given action.
 
     Swing/extension offsets and the reference leg trajectory will be added on
@@ -251,13 +397,16 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
     Returns:
       A numpy array of the desired motor angles for the given leg space action.
     """
+    if self._stay_still:
+        return self.init_pose    
     # Add swing_offset and extension_offset to mimick the bent legs.
     action[0:NUM_LEGS] += self._swing_offset
     action[NUM_LEGS:2 * NUM_LEGS] += self._extension_offset
 
     # Add the reference trajectory (i.e. the trotting signal).
     #action += self._signal(self.minitaur.GetTimeSinceReset())
-    action += self._signal(time)
+    self._check_target_position(t)    
+    action += self._signal(t,action)
     for i in range(0,4):
       np.clip(action[i],-0.45,0.45)
     for i in range(4,8):

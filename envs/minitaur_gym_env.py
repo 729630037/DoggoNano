@@ -3,7 +3,7 @@
 """
 import math
 import time
-
+import collections
 import os, inspect,sys
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(os.path.dirname(currentdir))
@@ -21,8 +21,6 @@ import pybullet
 from envs.tools import bullet_client as bc
 import pybullet_data
 from envs import minitaur
-from envs import minitaur_rainbow_dash
-from envs import minitaur_derpy
 from envs import motor
 from envs.terrain import Terrain
 from envs import model
@@ -61,40 +59,57 @@ class MinitaurGymEnv(gym.Env):
   """
   metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 100}
 
-  def __init__(self,
-               urdf_root=model.getDataPath(),
-               urdf_version=None,
-               distance_weight=1.0,
-               energy_weight=0.005,
-               shake_weight=0.005,
-               drift_weight=2,
-               distance_limit=float("inf"),
-               observation_noise_stdev=SENSOR_NOISE_STDDEV,
-               self_collision_enabled=True,
-               motor_velocity_limit=np.inf,
-               pd_control_enabled=False,
-               leg_model_enabled=False,
-               accurate_motor_model_enabled=False,
-               remove_default_joint_damping=False,
-               motor_kp=1.0,
-               motor_kd=0.02,
-               control_latency=0.0,
-               pd_latency=0.0,
-               torque_control_enabled=False,
-               motor_overheat_protection=False,
-               hard_reset=True,
-               on_rack=False,
-               render=False,
-               num_steps_to_log=1000,
-               action_repeat=1,
-               control_time_step=None,
-               env_randomizer=None,
-               forward_reward_cap=float("inf"),
-               reflection=True,
-               log_path=None,
-               terrain_type="plane",
-               terrain_id=None,               
-               ):
+  def __init__( self,
+                debug=False,  
+                urdf_root=model.getDataPath(),
+                urdf_version=None,
+                distance_weight=1.0,
+                energy_weight=0.005,
+                shake_weight=0.005,
+                drift_weight=2,
+                distance_limit=float("inf"),
+                observation_noise_stdev=SENSOR_NOISE_STDDEV,
+                self_collision_enabled=True,
+                motor_velocity_limit=np.inf,
+                pd_control_enabled=False,
+                leg_model_enabled=False,
+                accurate_motor_model_enabled=False,
+                remove_default_joint_damping=False,
+                motor_kp=1.0,
+                motor_kd=0.02,
+                control_latency=0.0,
+                pd_latency=0.0,
+                torque_control_enabled=False,
+                motor_overheat_protection=False,
+                hard_reset=True,
+                on_rack=False,
+                render=False,
+                num_steps_to_log=1000,
+                action_repeat=1,
+                control_time_step=None,
+                env_randomizer=None,
+                forward_reward_cap=float("inf"),
+                reflection=True,
+                log_path=None,
+                target_orient=None,
+                init_orient=None,
+                target_position=None,
+                start_position=None,
+                base_y=0.0,
+                base_z=0.0,
+                base_roll=0.0,
+                base_pitch=0.0,
+                base_yaw=0.0,
+                step_length=None,
+                step_rotation=None,
+                step_angle=None,
+                step_period=None,
+                backwards=None,
+                signal_type="ik",
+                terrain_type="plane",
+                terrain_id=None,
+                mark='base'             
+                ):
     """Initialize the minitaur gym environment.
 
     Args:
@@ -161,6 +176,7 @@ class MinitaurGymEnv(gym.Env):
     Raises:
       ValueError: If the urdf_version is not supported.
     """
+    self.mark = mark    
     # Set up logging.
     self._log_path = log_path
     # PD control needs smaller time step for stability.
@@ -189,7 +205,9 @@ class MinitaurGymEnv(gym.Env):
     self._env_step_counter = 0
     self._num_steps_to_log = num_steps_to_log
     self._is_render = render
+    self._is_debug = debug    
     self._last_base_position = [0, 0, 0]
+    self._last_base_orientation = [0, 0, 0, 1]    
     self._distance_weight = distance_weight
     self._energy_weight = energy_weight
     self._drift_weight = drift_weight
@@ -226,7 +244,41 @@ class MinitaurGymEnv(gym.Env):
     if self._urdf_version is None:
       self._urdf_version = DEFAULT_URDF_VERSION
     self._pybullet_client.setPhysicsEngineParameter(enableConeFriction=0)
+    self._signal_type = signal_type   
+    # gait inputs
+    self.step_length = step_length
+    self.step_rotation = step_rotation
+    self.step_angle = step_angle
+    self.step_period = step_period
+    # poses inputs
+    self._base_x = 0.01
+    self._base_y = base_y
+    self._base_z = base_z
+    self._base_roll = base_roll
+    self._base_pitch = base_pitch
+    self._base_yaw = base_yaw
+    # envs inputs
+    self._target_orient = target_orient
+    self._init_orient = init_orient
+    self._target_position = target_position
+    self._start_position = start_position
+    # computation support params
+    self._random_pos_target = False
+    self._random_pos_start = False
+    self._random_orient_target = False
+    self._random_orient_start = False
+    self._companion_obj = {}
+    self._queue = collections.deque(["base_y", "base_z", "roll", "pitch", "yaw"])
+    self._ranges = {
+        "base_x": (-0.02, 0.02, 0.01),
+        "base_y": (-0.007, 0.007, 0),
+        "base_z": (-0.048, 0.021, 0),
+        "roll": (-np.pi / 4, np.pi / 4, 0),
+        "pitch": (-np.pi / 4, np.pi / 4, 0),
+        "yaw": (-np.pi / 4, np.pi / 4, 0)
+    }    
     self.seed()
+    self._backwards = backwards
     self._terrain_type = "plane"
     self._terrain_id = terrain_id
     self.reset()            
@@ -242,6 +294,7 @@ class MinitaurGymEnv(gym.Env):
     self.observation_space = spaces.Box(observation_low, observation_high)
     self.viewer = None
     self._hard_reset = hard_reset  # This assignment need to be after reset()
+    self.env_goal_reached = False
 
   def close(self):
     if self._env_step_counter > 0:
@@ -252,9 +305,8 @@ class MinitaurGymEnv(gym.Env):
     self._env_randomizers.append(env_randomizer)
 
   def reset(self, initial_motor_angles=None, reset_duration=1.0):
+    self.env_goal_reached = False
     self._pybullet_client.configureDebugVisualizer(self._pybullet_client.COV_ENABLE_RENDERING, 0)
-    if self._env_step_counter > 0:
-      pass
     if self._hard_reset:
       self._pybullet_client.resetSimulation()
       self._pybullet_client.setPhysicsEngineParameter(
@@ -265,7 +317,6 @@ class MinitaurGymEnv(gym.Env):
         self._pybullet_client.changeVisualShape(self._ground_id, -1, rgbaColor=[1, 1, 1, 0.8])
         self._pybullet_client.configureDebugVisualizer(
             self._pybullet_client.COV_ENABLE_PLANAR_REFLECTION, self._ground_id)    
-   
       self._pybullet_client.setGravity(0, 0, -10)
       acc_motor = self._accurate_motor_model_enabled
       motor_protect = self._motor_overheat_protection
@@ -288,6 +339,7 @@ class MinitaurGymEnv(gym.Env):
           motor_overheat_protection=motor_protect,
           on_rack=self._on_rack,
           terrain_id=self._terrain_id)
+          
     self.minitaur.Reset(reload_urdf=False,
                         default_motor_angles=initial_motor_angles,
                         reset_time=reset_duration)
@@ -301,6 +353,7 @@ class MinitaurGymEnv(gym.Env):
     self._pybullet_client.setPhysicsEngineParameter(enableConeFriction=0)
     self._env_step_counter = 0
     self._last_base_position = [0, 0, 0]
+    self._last_base_orientation = [0, 0, 0, 1]    
     self._objectives = []
     self._pybullet_client.resetDebugVisualizerCamera(self._cam_dist, self._cam_yaw,
                                                      self._cam_pitch, [0, 0, 0])
