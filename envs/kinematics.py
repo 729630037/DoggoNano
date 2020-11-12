@@ -89,9 +89,18 @@ class Kinematics:
         cos_param = (self.l1**2 + L**2 - self.l2**2) / (2.0*self.l1*L)
         theta = np.arctan2(leg_direction * coord[0], coord[1])
         if(cos_param<=1 and cos_param>=-1):
-            gamma = np.arccos(cos_param)
+            raise ValueError("cos_param is out of bounds.")
+        gamma = np.arccos(cos_param)
         angles = np.array([theta, gamma])
         return angles
+
+    def solve_K(self,angle):
+        theta=angle[0]
+        gamma=angle[1]
+        L=self.l1*np.cos(gamma)+np.sqrt(pow(self.l1*np.cos(gamma),2)-(pow(self.l1,2)-pow(self.l2,2)))
+        x=np.sin(theta)*L
+        y=np.cos(theta)*L
+        return x,y
 
     def solve(self, orientation, position, frames=None):
 
@@ -139,4 +148,4 @@ class Kinematics:
                                  [_bodytofeetBR[0] , _bodytofeetBR[1] , _bodytofeetBR[2]],
                                  [_bodytofeetBL[0] , _bodytofeetBL[1] , _bodytofeetBL[2]]])
                                  
-        return FR_angles, BR_angles, FL_angles, BL_angles, _bodytofeet
+        return FR_angles, FL_angles, BR_angles, BL_angles, _bodytofeet

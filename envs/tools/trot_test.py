@@ -4,11 +4,11 @@ import numpy as np
 roll_d=[]
 pitch_d=[]
 t1=[]
-with open("123.txt",mode='r') as f:
+with open("dd.txt",mode='r') as f:
     for line in f:
-        roll, pitch,a,b,acc,vel,hour= line.split()
-        roll_d.append(float(acc))
-        t1.append(float(hour))
+        x, y= line.split(' ')
+        roll_d.append(float(y))
+        t1.append(float(x))
 plt.figure()
 plt.plot(t1, roll_d) 
 # plt.plot(t1, theta1)     

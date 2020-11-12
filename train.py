@@ -1,12 +1,7 @@
-import base64
-import imageio
-import IPython
 import matplotlib.pyplot as plt
 import os,sys,inspect
 import reverb
-import tempfile
 import PIL.Image
-import zipfile
 import time
 # sys.path.append("/home/sq/minitaur-nano")
 

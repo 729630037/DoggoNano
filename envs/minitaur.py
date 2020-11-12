@@ -159,7 +159,6 @@ class Minitaur(object):
       self._kd = 1
     self.time_step = time_step
     self._step_counter = 0
-    self.init_position = terrain.ROBOT_INIT_POSITION[terrain_id]    
     # reset_time=-1.0 means skipping the reset motion.
     # See Reset for more details.
     self.Reset(reset_time=-1.0)

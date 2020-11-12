@@ -9,7 +9,7 @@ from gym import spaces
 import numpy as np
 from envs import minitaur_gym_env
 from envs.gait_planner import GaitPlanner 
-from envs.kinematics import Kinematics
+from envs import kinematics
 from envs.env_randomizers.minitaur_env_randomizer_from_config import MinitaurEnvRandomizerFromConfig
 from envs.env_randomizers.minitaur_push_randomizer import MinitaurPushRandomizer
 
@@ -21,10 +21,10 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
   """The trotting gym environment for the minitaur.
 
   In this env, Minitaur performs a trotting style locomotion specified by
-  extension_amplitude, swing_amplitude, and step_frequency. Each diagonal pair
+  gamma_amplitude, theta_amplitude, and step_frequency. Each diagonal pair
   of legs will move according to the reference trajectory:
-      extension = extsion_amplitude * cos(2 * pi * step_frequency * t + phi)
-      swing = swing_amplitude * sin(2 * pi * step_frequency * t + phi)
+      gamma = gammasion_amplitude * cos(2 * pi * step_frequency * t + phi)
+      theta = theta_amplitude * sin(2 * pi * step_frequency * t + phi)
   And the two diagonal leg pairs have a phase (phi) difference of pi. The
   reference signal may be modified by the feedback actiones from a balance
   controller (e.g. a neural network).
@@ -39,7 +39,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
                action_repeat=1,
                control_latency=0.03,
                pd_latency=0.003,
-               on_rack=False,
+               on_rack=True,
                motor_kp=1.0,
                motor_kd=0.015,
                remove_default_joint_damping=True,
@@ -55,21 +55,21 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
                backwards=None,
                signal_type="ik",
                random_init_pose=False,
+               stay_still=False,
                step_frequency=2.0,
                init_theta=0.0,
-               init_gamma=1.4,
-               theta_amplitude=0.8,   #0.35rad=20.05度 0.3rad=17.19度
-               gamma_amplitude=0.4,
-               terrain_type="random",
-               terrain_id='random',
-               mark='base'                              
+               theta_amplitude=0.4,   #0.35rad=20.05度 0.3rad=17.19度
+               init_gamma=1.0,
+               gamma_amplitude=0.8,
+               terrain_type="plane",
+               terrain_id=None,
                ):
     """Initialize the minitaur trotting gym environment."""
 
-    # _swing_offset and _extension_offset is to mimick the bent legs. The
+    # _theta_offset and _gamma_offset is to mimick the bent legs. The
     # offsets will be added when applying the motor commands.
-    self._swing_offset = np.zeros(NUM_LEGS)
-    self._extension_offset = np.zeros(NUM_LEGS)
+    self._theta_offset = np.zeros(NUM_LEGS)
+    self._gamma_offset = np.zeros(NUM_LEGS)
     self._random_init_pose=random_init_pose
     # The reset position.
     self._init_pose = [
@@ -107,7 +107,6 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
                          signal_type=signal_type,
                          backwards=backwards,
                          debug=debug,
-                         mark=mark
                          )
 
     # (eventually) allow different feedback ranges/action spaces for different signals
@@ -124,14 +123,16 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
     self.action_space = spaces.Box(-action_high, action_high)
     # For render purpose.
     self._cam_dist = 1.0
-    self._cam_yaw = 0.0
-    self._cam_pitch = -20
+    self._cam_yaw = 3.0
+    self._cam_pitch = -30
 
     self._gait_planner = GaitPlanner("trot")
-    self._kinematics = Kinematics()
+    self._kinematics = kinematics.Kinematics()
     self.goal_reached = False
-    self._stay_still = False
+    self._stay_still = stay_still
     self.is_terminating = False
+
+    # self._fd=open("dd.txt","w")
 
   def reset(self):
     if self._random_init_pose==True:
@@ -142,7 +143,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
                                            reset_duration=0.5)
     self.goal_reached = False
     self.is_terminating = False
-    self._stay_still = False
+    # self._stay_still = False
     if self._backwards is None:
       self.backwards = random.choice([True, False])
     else:
@@ -156,7 +157,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
         base_x = .0
     if not self._target_position or self._random_pos_target:
         bound = -3 if self.backwards else 3
-        self._target_position = random.uniform(bound//2, bound)
+        # self._target_position = random.uniform(bound//2, bound)
         self._random_pos_target = True
     if self._is_render and self._signal_type == 'ik':
         if self.load_ui:
@@ -164,7 +165,6 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
             self.load_ui = False
     if self._is_debug:
         print(f"Target Position x={self._target_position}, Random assignment: {self._random_pos_target}, Backwards: {self.backwards}")        
-
     return self._get_observation()
 
 
@@ -294,25 +294,20 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
           if brakes_coeff == 0.0:
               self._stay_still = True
       direction = -1.0 if step_length < 0 else 1.0
-      frames = self._gait_planner.loop(step_length, step_angle, step_rotation, step_period, direction)
-      fr_angles, fl_angles, rr_angles, rl_angles, _ = self._kinematics.solve(orientation, position, frames)
-      signal = [
-          fl_angles[0], fl_angles[1], fl_angles[2],
-          fr_angles[0], fr_angles[1], fr_angles[2],
-          rl_angles[0], rl_angles[1], rl_angles[2],
-          rr_angles[0], rr_angles[1], rr_angles[2]
-      ]
+      frames = self._gait_planner.loop(t,step_length, step_angle, step_rotation, step_period, direction)
+      fr_angles, fl_angles, br_angles, bl_angles, _ = self._kinematics.solve(orientation, position, frames)
+      signal = np.array([fl_angles[0],bl_angles[0],br_angles[0],fr_angles[0],
+                fl_angles[1],bl_angles[1],br_angles[1],fr_angles[1]])
       return signal
 
   def _open_loop_signal(self, t, action):
-
     # Generates the leg trajectories for the two digonal pair of legs.
-    ext_first_pair, sw_first_pair = self._gen_signal(t, 0)
-    ext_second_pair, sw_second_pair = self._gen_signal(t, 0.5)
+    gamma_first, theta_first = self._gen_signal(t, 0)
+    gamma_second, theta_second = self._gen_signal(t, 0.5)
 
     trotting_signal = np.array([
-        sw_first_pair, sw_second_pair, sw_second_pair, sw_first_pair, ext_first_pair,
-        ext_second_pair, ext_second_pair, ext_first_pair
+        theta_first, theta_second, theta_second, theta_first, gamma_first,
+        gamma_second, gamma_second, gamma_first
     ]) 
     signal = np.array(self._init_pose) + trotting_signal
     return signal
@@ -321,48 +316,51 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
     """Converts leg space action into motor commands.
 
     Args:
-      leg_pose: A numpy array. leg_pose[0:NUM_LEGS] are leg swing angles
-        and leg_pose[NUM_LEGS:2*NUM_LEGS] contains leg extensions.
+      leg_pose: A numpy array. leg_pose[0:NUM_LEGS] are leg theta angles
+        and leg_pose[NUM_LEGS:2*NUM_LEGS] contains leg gammas.
 
     Returns:
       A numpy array of the corresponding motor angles for the given leg pose.
-        θ1=e-s   θ2=e+s
+        θ1=pi-e-s   θ2=pi-e+s
 
-      action[0]=ext_first_pair-sw_first_pair    0   2   action[4]=ext_second_pair+sw_second_pair
-      action[1]=ext_first_pair+sw_first_pair            action[5]=ext_second_pair-sw_second_pair
+      action[0]=gamma_first-theta_first    0   2   action[4]=gamma_second+theta_second
+      action[1]=gamma_first+theta_first            action[5]=gamma_second-theta_second
       
-      action[2]=ext_second_pair-sw_second_pair  1   3   action[6]=ext_first_pair+sw_first_pair    
-      action[3]=ext_second_pair+sw_second_pair          action[7]=ext_first_pair-sw_first_pair
+      action[2]=gamma_second-theta_second  1   3   action[6]=gamma_first+theta_first    
+      action[3]=gamma_second+theta_second          action[7]=gamma_first-theta_first
 
     """
     motor_pose = np.zeros(NUM_MOTORS)
     for i in range(NUM_LEGS):
-      motor_pose[int(2 * i)] = leg_pose[NUM_LEGS + i] - (-1)**int(i / 2) * leg_pose[i]
-      motor_pose[int(2 * i + 1)] = leg_pose[NUM_LEGS + i] + (-1)**int(i / 2) * leg_pose[i]
+      motor_pose[int(2 * i)] = math.pi-leg_pose[NUM_LEGS + i] - (-1)**int(i / 2) * leg_pose[i]
+      motor_pose[int(2 * i + 1)] = math.pi-leg_pose[NUM_LEGS + i] + (-1)**int(i / 2) * leg_pose[i]
     return motor_pose
 
   def _gen_signal(self, t, phase):
-    """Generates a sinusoidal reference leg trajectory.
+    # period = 1.0 / self._step_frequency
+    the_amp = self._theta_amplitude
+    gam_amp = self._gamma_amplitude
+    if self.goal_reached:
+        coeff = self._evaluate_brakes_stage_coeff(t, [0., 0.], end_t=self.end_time, end_value=0.0)
+        the_amp *= coeff
+        gam_amp *= coeff
+        if coeff is 0.0:
+            self._stay_still = True
+    start_coeff = self._evaluate_gait_stage_coeff(t, [0.0])
+    the_amp *= start_coeff
+    gam_amp *= start_coeff
 
-    The foot (leg tip) will move in a ellipse specified by extension and swing
-    amplitude.
-
-    Args:
-      t: Current time in simulation.
-      phase: The phase offset for the periodic trajectory.
-
-    Returns:
-      The desired leg extension and swing angle at the current time.
-    """
     gp=(t*self._step_frequency+phase)%1
     if gp<= self._flightPercent:
-        extension = -self._extension_amplitude * math.sin(math.pi/self._flightPercent* gp)
-        swing = self._swing_amplitude* math.cos(math.pi/self._flightPercent* gp) 
+        gamma = gam_amp * math.sin(math.pi/self._flightPercent* gp)
+        theta = the_amp* math.cos(math.pi/self._flightPercent* gp) 
     else:
         percentBack = (gp-self._flightPercent)/(1.0-self._flightPercent)
-        extension = (1-self._extension_amplitude)* math.sin(math.pi*percentBack)
-        swing = self._swing_amplitude * math.cos(math.pi*percentBack+math.pi) 
-    return extension, swing
+        gamma = (-1+gam_amp)* math.sin(math.pi*percentBack)
+        theta = the_amp * math.cos(math.pi*percentBack+math.pi)
+    # x,y=self._kinematics.solve_K([theta,gamma])
+    # self._fd.write(str(x)+" "+str(y)+'\n') 
+    return gamma, theta
 
   def _signal(self, t, action):
     """Generates the trotting gait for the robot.
@@ -373,9 +371,9 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
     Returns:
       A numpy array of the reference leg positions.
 
-      sw_first_pair,ext_first_pair    0   2   sw_second_pair,ext_second_pair
+      theta_first,gamma_first    0   2   theta_second,gamma_second
 
-      sw_second_pair,ext_second_pair  1   3   sw_first_pair,ext_first_pair
+      theta_second,gamma_second  1   3   theta_first,gamma_first
 
     """
     if self._signal_type == 'ik':
@@ -383,34 +381,28 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
     if self._signal_type == 'ol':
         return self._open_loop_signal(t, action)
 
-  def _transform_action_to_motor_command(self, action,t):
-    """Generates the motor commands for the given action.
-
-    Swing/extension offsets and the reference leg trajectory will be added on
+  def _transform_action_to_motor_command(self, action):
+    """
+    Generates the motor commands for the given action.
+    theta/gamma offsets and the reference leg trajectory will be added on
     top of the inputs before the conversion.
-
-    Args:
-      action: A numpy array contains the leg swings and extensions that will be
-        added to the reference trotting trajectory. action[0:NUM_LEGS] are leg
-        swing angles, and action[NUM_LEGS:2*NUM_LEGS] contains leg extensions.
-
-    Returns:
-      A numpy array of the desired motor angles for the given leg space action.
     """
     if self._stay_still:
-        return self.init_pose    
-    # Add swing_offset and extension_offset to mimick the bent legs.
-    action[0:NUM_LEGS] += self._swing_offset
-    action[NUM_LEGS:2 * NUM_LEGS] += self._extension_offset
-
+        return self._init_pose,self._convert_from_leg_model(self._init_pose)    
+    # Add theta_offset and gamma_offset to mimick the bent legs.
+    action[0:NUM_LEGS] += self._theta_offset
+    action[NUM_LEGS:2 * NUM_LEGS] += self._gamma_offset
+    t= time.time()-self._reset_time 
+    print(t) 
+    # t=self.minitaur.GetTimeSinceReset()
     # Add the reference trajectory (i.e. the trotting signal).
     #action += self._signal(self.minitaur.GetTimeSinceReset())
     self._check_target_position(t)    
     action += self._signal(t,action)
-    for i in range(0,4):
-      np.clip(action[i],-0.45,0.45)
-    for i in range(4,8):
-      np.clip(action[i],0.85,2.35)    
+    # for i in range(0,4):
+    #   np.clip(action[i],-0.45,0.45)
+    # for i in range(4,8):
+    #   np.clip(action[i],0.85,2.35)    
     return action,self._convert_from_leg_model(action)
 
   def is_fallen(self):
@@ -491,22 +483,22 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
     lower_bound = -self._get_observation_upper_bound()
     return lower_bound
 
-  def set_swing_offset(self, value):
-    """Set the swing offset of each leg.
+  def set_theta_offset(self, value):
+    """Set the theta offset of each leg.
 
     It is to mimic the bent leg.
 
     Args:
       value: A list of four values.
     """
-    self._swing_offset = value
+    self._theta_offset = value
 
-  def set_extension_offset(self, value):
-    """Set the extension offset of each leg.
+  def set_gamma_offset(self, value):
+    """Set the gamma offset of each leg.
 
     It is to mimic the bent leg.
 
     Args:
       value: A list of four values.
     """
-    self._extension_offset = value
+    self._gamma_offset = value

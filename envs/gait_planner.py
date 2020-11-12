@@ -12,7 +12,7 @@ class GaitPlanner:
         self._last_time = 0.
         self._alpha = 0.
         self._s = False
-        if mode == "walk":
+        if mode == "trot":
             self._offset = np.array([0., 0.5, 0.5, 0.])
             self.step_offset = 0.5
         else:
@@ -60,7 +60,7 @@ class GaitPlanner:
     # step_trajectory(phi, 0.6, 0, 0,center_to_foot,direction)
     def step_trajectory(self, phi, v, angle, w_rot, center_to_foot, direction):
         if phi >= 1:
-            phi = phi - 1.
+            phi = phi % 1.
         r = np.sqrt(center_to_foot[0] ** 2 + center_to_foot[1] ** 2)
         foot_angle = np.arctan2(center_to_foot[1], center_to_foot[0])
         if w_rot >= 0.:
@@ -95,7 +95,7 @@ class GaitPlanner:
         return coord
 
     #loop(0.6, 0, 0, 0.5, direction)
-    def loop(self, v, angle, w_rot, t, direction, frames=None):
+    def loop(self, t, v, angle, w_rot, period, direction, frames=None):
         if frames is None:
             k_obj = Kinematics()
             x_dist = k_obj.L
@@ -105,11 +105,13 @@ class GaitPlanner:
                                   [x_dist / 2, y_dist / 2, -height],
                                   [-x_dist / 2, -y_dist / 2, -height],
                                   [-x_dist / 2, y_dist / 2, -height]])
-        if t <= 0.01:
-            t = 0.01
-        if self._phi >= 0.99:
-            self._last_time = time.time()
-        self._phi = (time.time() - self._last_time) / t
+        # if t <= 0.01:
+        #     t = 0.01
+        # if self._phi >= 0.99:
+        #     self._last_time = time.time()
+       
+        self._phi = t / period % 1
+
         step_coord = self.step_trajectory(self._phi + self._offset[0], v, angle, w_rot,
                                           np.squeeze(np.asarray(frames[0, :])), direction)  # FR
         self._frame[0, 0] = frames[0, 0] + step_coord[0]

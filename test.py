@@ -1,13 +1,6 @@
-import base64
-import imageio
-import IPython
 import matplotlib.pyplot as plt
 import os,sys,inspect
 import reverb
-import tempfile
-import PIL.Image
-import zipfile
-# sys.path.append("/home/sq/minitaur-nano")
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(os.path.dirname(currentdir))
@@ -55,7 +48,7 @@ def convert_to_tensor(time_step):
     return time_step
 
 env_name = "MinitaurTrottingEnv-v1"
-eval_env = suite_pybullet.load(env_name,max_episode_steps=2000)
+eval_env = suite_pybullet.load(env_name,max_episode_steps=1000)
 time_step= eval_env.reset()
 saved_policy = tf.saved_model.load("policies/policy")
 time_step=convert_to_tensor(time_step)
@@ -79,16 +72,3 @@ print("-----------------------")
 # saved_policy = tf.saved_model.load('policy_4999')
 # policy_state = saved_policy.get_initial_state(batch_size=1)
 
-# # # 以下代码显示了几次episodes的agent策略：
-# num_episodes = 3
-# video_filename = 'sac_minitaur.mp4'
-# with imageio.get_writer(video_filename, fps=60) as video:
-#   for _ in range(num_episodes):
-#     time_step = eval_env.reset()
-#     video.append_data(eval_env.render())
-#     while not time_step.is_last():
-#       action_step = saved_policy.action(time_step)
-#       time_step = eval_env.step(action_step.action)
-#       video.append_data(eval_env.render())
-
-# embed_mp4(video_filename)  

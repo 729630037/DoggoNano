@@ -105,7 +105,7 @@ class MinitaurGymEnv(gym.Env):
                 step_angle=None,
                 step_period=None,
                 backwards=None,
-                signal_type="ik",
+                signal_type="ol",
                 terrain_type="plane",
                 terrain_id=None,
                 mark='base'             
@@ -365,7 +365,7 @@ class MinitaurGymEnv(gym.Env):
     self.np_random, seed = seeding.np_random(seed)
     return [seed]
 
-  def _transform_action_to_motor_command(self, action, time):
+  def _transform_action_to_motor_command(self, action):
     action_convertFromLegModel=action
     if self._leg_model_enabled:
       for i, action_component in enumerate(action):
@@ -408,7 +408,7 @@ class MinitaurGymEnv(gym.Env):
     for env_randomizer in self._env_randomizers:
       env_randomizer=env_randomizer()
       env_randomizer.randomize_step(self)
-    _,action = self._transform_action_to_motor_command(action,time.time()-self._reset_time)
+    _,action = self._transform_action_to_motor_command(action)
     self.minitaur.Step(action)
     reward = self._reward()
     done = self._termination()
