@@ -7,7 +7,7 @@ class Kinematics:
         self.W = 0.188 #width of robot
         self.l1 = 0.09
         self.l2 = 0.162
-        self.height = 0.15
+        self.height = 0.16
         #body frame to coxa frame vector
         self.bodytoFR0 = np.array([ self.L/2, -self.W/2 , 0])
         self.bodytoFL0 = np.array([ self.L/2,  self.W/2 , 0])
@@ -85,10 +85,10 @@ class Kinematics:
         return domain
 
     def _solve_IK(self, coord, leg_direction):
-        L = np.sqrt(coord[0] ** 2 + coord[1] ** 2)
+        L = np.sqrt(coord[0] ** 2 + coord[2] ** 2)
         cos_param = (self.l1**2 + L**2 - self.l2**2) / (2.0*self.l1*L)
-        theta = np.arctan2(leg_direction * coord[0], coord[1])
-        if(cos_param<=1 and cos_param>=-1):
+        theta = np.arctan2(leg_direction * coord[0], -coord[2])
+        if(cos_param>=1 or cos_param<=-1):
             raise ValueError("cos_param is out of bounds.")
         gamma = np.arccos(cos_param)
         angles = np.array([theta, gamma])
@@ -122,7 +122,7 @@ class Kinematics:
         FLcoord = bodytoFL4 - _bodytoFL0
         BRcoord = bodytoBR4 - _bodytoBR0
         BLcoord = bodytoBL4 - _bodytoBL0
-
+        # print(FLcoord[0],BRcoord[0])
         """undo transformation of leg vector to keep feet still"""
         inv_orientation = -orientation
         inv_position = -position
@@ -134,10 +134,11 @@ class Kinematics:
         """solve IK"""
         leg_direction=-1        
         FR_angles  = self._solve_IK(_FRcoord, leg_direction)
-        BR_angles  = self._solve_IK(_BRcoord, leg_direction)
-        leg_direction=1            
-        FL_angles  = self._solve_IK(_FLcoord, leg_direction)
         BL_angles  = self._solve_IK(_BLcoord, leg_direction)
+        leg_direction=-1            
+        FL_angles  = self._solve_IK(_FLcoord, leg_direction)
+        BR_angles  = self._solve_IK(_BRcoord, leg_direction)
+        # print(FL_angles[1],BR_angles[1])        
 
         _bodytofeetFR = _bodytoFR0 + _FRcoord
         _bodytofeetFL = _bodytoFL0 + _FLcoord

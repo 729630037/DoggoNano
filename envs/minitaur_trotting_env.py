@@ -39,7 +39,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
                action_repeat=1,
                control_latency=0.03,
                pd_latency=0.003,
-               on_rack=True,
+               on_rack=False,
                motor_kp=1.0,
                motor_kd=0.015,
                remove_default_joint_damping=True,
@@ -267,8 +267,8 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
   def _IK_signal(self, t, action):
       base_pos_coeff = self._evaluate_base_stage_coeff(t, width=1.5)
       gait_stage_coeff = self._evaluate_gait_stage_coeff(t, action)
-      step = 0.6
-      period = 0.65
+      step = 1.5
+      period = 0.5
       base_x = self._base_x
       if self.backwards:
           step = -.3
@@ -296,8 +296,8 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
       direction = -1.0 if step_length < 0 else 1.0
       frames = self._gait_planner.loop(t,step_length, step_angle, step_rotation, step_period, direction)
       fr_angles, fl_angles, br_angles, bl_angles, _ = self._kinematics.solve(orientation, position, frames)
-      signal = np.array([fl_angles[0],bl_angles[0],br_angles[0],fr_angles[0],
-                fl_angles[1],bl_angles[1],br_angles[1],fr_angles[1]])
+      signal = np.array([fl_angles[0],bl_angles[0],fr_angles[0],br_angles[0],
+                fl_angles[1],bl_angles[1],fr_angles[1],br_angles[1]])
       return signal
 
   def _open_loop_signal(self, t, action):
@@ -393,7 +393,6 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
     action[0:NUM_LEGS] += self._theta_offset
     action[NUM_LEGS:2 * NUM_LEGS] += self._gamma_offset
     t= time.time()-self._reset_time 
-    print(t) 
     # t=self.minitaur.GetTimeSinceReset()
     # Add the reference trajectory (i.e. the trotting signal).
     #action += self._signal(self.minitaur.GetTimeSinceReset())
