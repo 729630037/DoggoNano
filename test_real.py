@@ -1,0 +1,48 @@
+import os,sys
+from math import pi as PI, degrees, radians, sin, cos,sqrt,pow,atan2,acos
+import math
+import threading
+import queue
+import signal
+import time
+
+from drivers.driver import PositionControl
+from envs.minitaur_trotting_env import MinitaurTrottingEnv
+from envs.tools import bullet_client
+import tensorflow as tf
+from tf_agents.trajectories import time_step as ts
+from tf_agents.environments import suite_pybullet
+from test_sim import convert_to_tensor
+
+env_name = "MinitaurTrottingEnv-v1"
+eval_env = suite_pybullet.load(env_name,max_episode_steps=2000)
+time_step= eval_env.reset()
+saved_policy = tf.saved_model.load("policies/policy")
+time_step=convert_to_tensor(time_step)
+reward=0
+flag=True
+
+def handler(signum, frame):
+    global flag
+    flag=False
+
+signal.signal(signal.SIGINT,handler)
+pos_control=PositionControl()
+pos_control.Start()
+while pos_control.ready!=[1]*4 :
+    pass
+t=input("please input t:")
+while t!='t':
+    pass
+
+while flag:
+    action_step = saved_policy.action(time_step)
+    proto_tensor=tf.make_tensor_proto(action_step.action)
+    action=tf.make_ndarray(proto_tensor)
+    action=[[0,0,0,0,0,0,0,0]]
+    time_step = eval_env.step(action[0])
+    pos_control.Run(eval_env.action)
+    time_step=convert_to_tensor(time_step)
+
+
+

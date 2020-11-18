@@ -108,7 +108,8 @@ class MinitaurGymEnv(gym.Env):
                 signal_type="ol",
                 terrain_type="plane",
                 terrain_id=None,
-                mark='base'             
+                mark='base',
+                use_imu=False           
                 ):
     """Initialize the minitaur gym environment.
 
@@ -244,7 +245,11 @@ class MinitaurGymEnv(gym.Env):
     if self._urdf_version is None:
       self._urdf_version = DEFAULT_URDF_VERSION
     self._pybullet_client.setPhysicsEngineParameter(enableConeFriction=0)
-    self._signal_type = signal_type   
+    self._signal_type = signal_type
+    self._use_imu=use_imu
+    if self._use_imu:
+      from drivers.imu_BNO008X_i2c import IMU      
+      self._imu=IMU()
     # gait inputs
     self.step_length = step_length
     self.step_rotation = step_rotation
@@ -292,6 +297,7 @@ class MinitaurGymEnv(gym.Env):
     action_high = np.array([self._action_bound] * action_dim)
     self.action_space = spaces.Box(-action_high, action_high)
     self.observation_space = spaces.Box(observation_low, observation_high)
+    self.action=[0.0]*8
     self.viewer = None
     self._hard_reset = hard_reset  # This assignment need to be after reset()
     self.env_goal_reached = False
@@ -391,6 +397,10 @@ class MinitaurGymEnv(gym.Env):
       ValueError: The action dimension is not the same as the number of motors.
       ValueError: The magnitude of actions is out of bounds.
     """
+    _,action = self._transform_action_to_motor_command(action)
+    self.action=action
+    if self._use_imu:
+      return np.array(self._get_imu_observation()), 0, False, _
     self._last_base_position = self.minitaur.GetBasePosition()
     # Sleep, otherwise the computation takes less time than real time,
     # which will make the visualization like a fast-forward video.
@@ -408,7 +418,7 @@ class MinitaurGymEnv(gym.Env):
     for env_randomizer in self._env_randomizers:
       env_randomizer=env_randomizer()
       env_randomizer.randomize_step(self)
-    _,action = self._transform_action_to_motor_command(action)
+
     self.minitaur.Step(action)
     reward = self._reward()
     done = self._termination()
@@ -430,10 +440,10 @@ class MinitaurGymEnv(gym.Env):
         roll=0,
         upAxisIndex=2)
     proj_matrix = self._pybullet_client.computeProjectionMatrixFOV(fov=60,
-                                                                   aspect=float(RENDER_WIDTH) /
-                                                                   RENDER_HEIGHT,
-                                                                   nearVal=0.1,
-                                                                   farVal=100.0)
+                                                                  aspect=float(RENDER_WIDTH) /
+                                                                  RENDER_HEIGHT,
+                                                                  nearVal=0.1,
+                                                                  farVal=100.0)
     (_, _, px, _, _) = self._pybullet_client.getCameraImage(
         width=RENDER_WIDTH,
         height=RENDER_HEIGHT,
@@ -535,6 +545,10 @@ class MinitaurGymEnv(gym.Env):
       the order that objectives are stored.
     """
     return self._objective_weights
+
+  def _get_imu_observation(self):
+    observation=self._imu.DataHandle()
+    return observation
 
   def _get_observation(self):
     """Get observation of this environment, including noise and latency.

@@ -13,6 +13,7 @@ from envs import kinematics
 from envs.env_randomizers.minitaur_env_randomizer_from_config import MinitaurEnvRandomizerFromConfig
 from envs.env_randomizers.minitaur_push_randomizer import MinitaurPushRandomizer
 
+
 # TODO(tingnan): These constants should be moved to minitaur/minitaur_gym_env.
 NUM_LEGS = 4
 NUM_MOTORS = 2 * NUM_LEGS
@@ -63,6 +64,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
               gamma_amplitude=0.8,
               terrain_type="random",
               terrain_id=None,
+              use_imu=False
               ):
     """Initialize the minitaur trotting gym environment."""
 
@@ -107,6 +109,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
                         signal_type=signal_type,
                         backwards=backwards,
                         debug=debug,
+                        use_imu=use_imu
                         )
 
     # (eventually) allow different feedback ranges/action spaces for different signals
@@ -155,10 +158,10 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
         step = -.3
         period = .5
         base_x = .0
-    if not self._target_position or self._random_pos_target:
-        bound = -3 if self.backwards else 3
-        # self._target_position = random.uniform(bound//2, bound)
-        self._random_pos_target = True
+    # if not self._target_position or self._random_pos_target:
+    #     bound = -3 if self.backwards else 3
+    #     self._target_position = random.uniform(bound//2, bound)
+    #     self._random_pos_target = True
     if self._is_render and self._signal_type == 'ik':
         if self.load_ui:
             self.setup_ui(base_x, step, period)
@@ -428,7 +431,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
     roll_rate, pitch_rate, _ = self.minitaur.GetTrueBaseRollPitchYawRate()
     observation.extend([roll, pitch, roll_rate, pitch_rate])
     if self._use_signal_in_observation:
-      _,action=self._transform_action_to_motor_command([0] * 8,time.time()-self._reset_time)      
+      _,action=self._transform_action_to_motor_command([0] * 8)      
       observation.extend(action)
     if self._use_angle_in_observation:
       observation.extend(self.minitaur.GetMotorAngles().tolist())
@@ -450,7 +453,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
     roll_rate, pitch_rate, _ = self.minitaur.GetBaseRollPitchYawRate()
     observation.extend([roll, pitch, roll_rate, pitch_rate])
     if self._use_signal_in_observation:
-      _,action=self._transform_action_to_motor_command([0] * 8,time.time()-self._reset_time)      
+      _,action=self._transform_action_to_motor_command([0] * 8)      
       observation.extend(action)
     if self._use_angle_in_observation:
       observation.extend(self.minitaur.GetMotorAngles().tolist())

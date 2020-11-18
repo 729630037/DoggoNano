@@ -295,12 +295,12 @@ def handler(signum, frame):
 
 if __name__=='__main__':
     signal.signal(signal.SIGINT,handler)
-    pos_contorl=PositionControl()
-    pos_contorl.Start()
+    pos_control=PositionControl()
+    pos_control.Start()
     # imu=imu_BNO008X_uart.IMU("/dev/ttyTHS1")
     # imu.DeviceInit()
     # fd=open("123.txt",mode='w',encoding='utf-8')      
-    while pos_contorl.ready!=[1]*4 :
+    while pos_control.ready!=[1]*4 :
         pass
     t='a'
     t=input("please input t:")
@@ -309,15 +309,15 @@ if __name__=='__main__':
     time.sleep(3)
     t_init=time.time()
     st=t_init
-    #pos_contorl.SetParams(WalkGaitParams)
+    #pos_control.SetParams(WalkGaitParams)
     while flag:
         t=time.time()-t_init
-        pos_contorl.Gait(t)    #walk    
-        # action=pos_contorl.Signal(t)
-        # pos_contorl.Run(action)
+        pos_control.Gait(t)    #walk    
+        # action=pos_control.Signal(t)
+        # pos_control.Run(action)
         #print(time.time()-st)
         # observation=imu.ReadDataMsg()
-        #theta,gamma = pos_contorl.GetThetaGamma()
+        #theta,gamma = pos_control.GetThetaGamma()
         # for i in range(4):
         #     fd.write(str(observation[i])+' ')        
         # # fd.write(str(theta)+' '+str(gamma)+' ')
@@ -326,5 +326,5 @@ if __name__=='__main__':
         # #time.sleep(0.02)
         # if t>8:
         #     break           
-    pos_contorl.Stop()
+    pos_control.Stop()
 
