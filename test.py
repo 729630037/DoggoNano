@@ -1,35 +1,11 @@
 import matplotlib.pyplot as plt
 import os,sys,inspect
-import reverb
-
-currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-parentdir = os.path.dirname(os.path.dirname(currentdir))
-tempdir = currentdir
-
-
+import envs.tools.bullet_client
 import tensorflow as tf
-
 from tf_agents.trajectories import time_step as ts
-from tf_agents.agents.ddpg import critic_network
-from tf_agents.agents.sac import sac_agent
-from tf_agents.agents.sac import tanh_normal_projection_network
 from tf_agents.environments import suite_pybullet
-from tf_agents.experimental.train import actor
-from tf_agents.experimental.train import learner
-from tf_agents.experimental.train import triggers
-from tf_agents.experimental.train.utils import spec_utils
-from tf_agents.experimental.train.utils import strategy_utils
-from tf_agents.experimental.train.utils import train_utils
-from tf_agents.metrics import py_metrics
-from tf_agents.networks import actor_distribution_network
-from tf_agents.policies import greedy_policy
-from tf_agents.policies import py_tf_eager_policy
-from tf_agents.policies import random_py_policy
-from tf_agents.policies import policy_saver
-from tf_agents.replay_buffers import reverb_replay_buffer
-from tf_agents.replay_buffers import reverb_utils
-from tf_agents.utils import common
-from tf_agents.utils import test_utils
+
+           
 
 def convert_to_tensor(time_step):
     step_type=time_step[0]
@@ -48,7 +24,7 @@ def convert_to_tensor(time_step):
     return time_step
 
 env_name = "MinitaurTrottingEnv-v1"
-eval_env = suite_pybullet.load(env_name,max_episode_steps=10000)
+eval_env = suite_pybullet.load(env_name,max_episode_steps=2000)
 time_step= eval_env.reset()
 saved_policy = tf.saved_model.load("policies/policy")
 time_step=convert_to_tensor(time_step)

@@ -34,36 +34,36 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
   load_ui = True
   is_terminating = False
   def __init__(self,
-               debug=False,
-               control_time_step=0.001,
-               action_repeat=1,
-               control_latency=0.03,
-               pd_latency=0.003,
-               on_rack=False,
-               motor_kp=1.0,
-               motor_kd=0.015,
-               remove_default_joint_damping=True,
-               render=True,
-               num_steps_to_log=1000,
-               accurate_motor_model_enabled=True,
-               use_signal_in_observation=False,
-               use_angle_in_observation=False,
-               hard_reset=False,
-               env_randomizer=[MinitaurEnvRandomizerFromConfig,MinitaurPushRandomizer],
-               log_path=None,
-               target_position=None,
-               backwards=None,
-               signal_type="ik",
-               random_init_pose=False,
-               stay_still=False,
-               step_frequency=2.0,
-               init_theta=0.0,
-               theta_amplitude=0.4,   #0.35rad=20.05度 0.3rad=17.19度
-               init_gamma=1.0,
-               gamma_amplitude=0.8,
-               terrain_type="plane",
-               terrain_id=None,
-               ):
+              debug=False,
+              control_time_step=0.001,
+              action_repeat=1,
+              control_latency=0.03,
+              pd_latency=0.003,
+              on_rack=False,
+              motor_kp=1.0,
+              motor_kd=0.015,
+              remove_default_joint_damping=True,
+              render=False,
+              num_steps_to_log=1000,
+              accurate_motor_model_enabled=True,
+              use_signal_in_observation=False,
+              use_angle_in_observation=False,
+              hard_reset=False,
+              env_randomizer=[MinitaurEnvRandomizerFromConfig,MinitaurPushRandomizer],
+              log_path=None,
+              target_position=None,
+              backwards=None,
+              signal_type="ol",
+              random_init_pose=False,
+              stay_still=False,
+              step_frequency=2.0,
+              init_theta=0.0,
+              theta_amplitude=0.4,   #0.35rad=20.05度 0.3rad=17.19度
+              init_gamma=1.0,
+              gamma_amplitude=0.8,
+              terrain_type="random",
+              terrain_id=None,
+              ):
     """Initialize the minitaur trotting gym environment."""
 
     # _theta_offset and _gamma_offset is to mimick the bent legs. The
@@ -86,28 +86,28 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
 
     super(MinitaurTrottingEnv,
           self).__init__(
-                         accurate_motor_model_enabled=accurate_motor_model_enabled,
-                         motor_overheat_protection=False,
-                         motor_kp=motor_kp,
-                         motor_kd=motor_kd,
-                         remove_default_joint_damping=remove_default_joint_damping,
-                         control_latency=control_latency,
-                         pd_latency=pd_latency,
-                         on_rack=on_rack,
-                         render=render,
-                         hard_reset=hard_reset,
-                         num_steps_to_log=num_steps_to_log,
-                         env_randomizer=env_randomizer,
-                         log_path=log_path,
-                         control_time_step=control_time_step,
-                         action_repeat=action_repeat,
-                         terrain_id=terrain_id,
-                         terrain_type=terrain_type,
-                         target_position=target_position,
-                         signal_type=signal_type,
-                         backwards=backwards,
-                         debug=debug,
-                         )
+                        accurate_motor_model_enabled=accurate_motor_model_enabled,
+                        motor_overheat_protection=False,
+                        motor_kp=motor_kp,
+                        motor_kd=motor_kd,
+                        remove_default_joint_damping=remove_default_joint_damping,
+                        control_latency=control_latency,
+                        pd_latency=pd_latency,
+                        on_rack=on_rack,
+                        render=render,
+                        hard_reset=hard_reset,
+                        num_steps_to_log=num_steps_to_log,
+                        env_randomizer=env_randomizer,
+                        log_path=log_path,
+                        control_time_step=control_time_step,
+                        action_repeat=action_repeat,
+                        terrain_id=terrain_id,
+                        terrain_type=terrain_type,
+                        target_position=target_position,
+                        signal_type=signal_type,
+                        backwards=backwards,
+                        debug=debug,
+                        )
 
     # (eventually) allow different feedback ranges/action spaces for different signals
     action_max = {
@@ -140,7 +140,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
                                           np.array(self._init_pose) + np.array([0.08]*8)) 
     initial_motor_angles = self._convert_from_leg_model(self._init_pose)
     super(MinitaurTrottingEnv, self).reset(initial_motor_angles=initial_motor_angles,
-                                           reset_duration=0.5)
+                                          reset_duration=0.5)
     self.goal_reached = False
     self.is_terminating = False
     # self._stay_still = False

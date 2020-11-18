@@ -1,8 +1,9 @@
 import matplotlib.pyplot as plt
 import os,sys,inspect
 import reverb
-import PIL.Image
 import time
+import envs.tools.bullet_client
+
 # sys.path.append("/home/sq/minitaur-nano")
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -66,8 +67,6 @@ policy_save_interval = 5000 # @param {type:"integer"}
 # 加载Minituar环境
 env = suite_pybullet.load(env_name)
 env.reset()
-PIL.Image.fromarray(env.render())
-
 print('Observation Spec:')
 print(env.time_step_spec().observation)
 print('Action Spec:')
@@ -76,6 +75,7 @@ print(env.action_spec())
 # 我们创建两种环境：一种用于在训练期间收集数据，另一种用于评估
 collect_env = suite_pybullet.load(env_name,max_episode_steps=2000)
 eval_env = suite_pybullet.load(env_name,max_episode_steps=2000)
+
 
 # 启用GPU
 use_gpu = True #@param {type:"boolean"}
