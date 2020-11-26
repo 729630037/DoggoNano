@@ -60,7 +60,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
               step_frequency=2.0,
               init_theta=0.0,
               theta_amplitude=0.4,   #0.35rad=20.05度 0.3rad=17.19度
-              init_gamma=1.0,
+              init_gamma=1.1,
               gamma_amplitude=0.8,
               terrain_type="random",
               terrain_id=None,
@@ -368,8 +368,6 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
         percentBack = (gp-self._flightPercent)/(1.0-self._flightPercent)
         gamma = (-1+gam_amp)* math.sin(math.pi*percentBack)
         theta = the_amp * math.cos(math.pi*percentBack+math.pi)
-    x,y=self._kinematics.solve_K([theta,gamma])
-    self._fd.write(str(x)+" "+str(y)+'\n') 
     return gamma, theta
 
   def _signal(self, t, action):
@@ -408,6 +406,8 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
     #action += self._signal(self.minitaur.GetTimeSinceReset())
     self._check_target_position(t)    
     action += self._signal(t,action)
+    x,y=self._kinematics.solve_K([action[0],action[4]])
+    self._fd.write(str(x)+" "+str(y)+'\n') 
     # for i in range(0,4):
     #   np.clip(action[i],-0.45,0.45)
     # for i in range(4,8):

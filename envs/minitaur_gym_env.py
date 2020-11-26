@@ -397,7 +397,7 @@ class MinitaurGymEnv(gym.Env):
       ValueError: The magnitude of actions is out of bounds.
     """
     _,action = self._transform_action_to_motor_command(action)
-    self.action=action
+    self.action=_
     if self._use_imu:
       return np.array(self._get_imu_observation()), 0, False, _
     self._last_base_position = self.minitaur.GetBasePosition()

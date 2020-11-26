@@ -22,7 +22,7 @@ def convert_to_tensor(time_step):
     return time_step
 
 env_name = "MinitaurTrottingEnv-v1"
-eval_env = suite_pybullet.load(env_name,max_episode_steps=2000)
+eval_env = suite_pybullet.load(env_name,max_episode_steps=1000)
 time_step= eval_env.reset()
 saved_policy = tf.saved_model.load("policies/policy")
 time_step=convert_to_tensor(time_step)

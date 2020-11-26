@@ -238,7 +238,8 @@ class PositionControl:
         self.thread_odrv3.start()
 
     def Run(self,action):
-        theta_gamma=self.TransformActionToThetagamma(action)
+        theta_gamma=action
+        # theta_gamma=self.TransformActionToThetagamma(action)
         self.odrv0.SetCouplePosition(theta_gamma[0],theta_gamma[4])       
         self.odrv1.SetCouplePosition(theta_gamma[1],theta_gamma[5])        
         self.odrv2.SetCouplePosition(theta_gamma[2],theta_gamma[6])        
