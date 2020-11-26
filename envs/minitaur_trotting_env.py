@@ -64,7 +64,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
               gamma_amplitude=0.8,
               terrain_type="random",
               terrain_id=None,
-              use_imu=True
+              use_imu=False
               ):
     """Initialize the minitaur trotting gym environment."""
 
