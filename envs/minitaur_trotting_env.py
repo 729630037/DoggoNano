@@ -54,7 +54,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
               log_path=None,
               target_position=None,
               backwards=None,
-              signal_type="ol",
+              signal_type="ik",
               random_init_pose=False,
               stay_still=False,
               step_frequency=2.0,
@@ -407,7 +407,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
     self._check_target_position(t)    
     action += self._signal(t,action)
     x,y=self._kinematics.solve_K([action[0],action[4]])
-    self._fd.write(str(x)+" "+str(y)+'\n') 
+    # self._fd.write(str(x)+" "+str(y)+'\n') 
     # for i in range(0,4):
     #   np.clip(action[i],-0.45,0.45)
     # for i in range(4,8):

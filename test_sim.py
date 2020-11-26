@@ -32,9 +32,9 @@ reward=0
 
 # action = [0,0,0,0,0,0,0,0]
 while not time_step.is_last():
-    action_step = saved_policy.action(time_step)
-    proto_tensor=tf.make_tensor_proto(action_step.action)
-    action=tf.make_ndarray(proto_tensor)
+    # action_step = saved_policy.action(time_step)
+    # proto_tensor=tf.make_tensor_proto(action_step.action)
+    # action=tf.make_ndarray(proto_tensor)
     action=[[0,0,0,0,0,0,0,0]]
     time_step = eval_env.step(action[0])
     reward+=time_step[1]
