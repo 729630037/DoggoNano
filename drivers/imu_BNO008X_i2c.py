@@ -12,7 +12,7 @@ import math
 
 class IMU:
     def __init__(self):
-        i2c = busio.I2C(board.SCL, board.SDA, frequency=400000)
+        i2c = busio.I2C(board.SCL, board.SDA, frequency=200000)
         self.bno = BNO08X_I2C(i2c,address=0x4b)
 
         self.bno.enable_feature(adafruit_bno08x.BNO_REPORT_LINEAR_ACCELERATION)
@@ -42,6 +42,8 @@ class IMU:
     def QuaternionToEuler(self,Q):
         """Converts quaternions with components w, x, y, z into a tuple (roll, pitch, yaw)"""
         norm=math.sqrt(Q[0]*Q[0]+Q[1]*Q[1]+Q[2]*Q[2]+Q[3]*Q[3])
+        if norm==0:
+            return 0,0,0
         w=Q[0]/norm
         x=Q[1]/norm
         y=Q[2]/norm
@@ -79,7 +81,7 @@ class IMU:
         linear_accel_x,linear_accel_y,linear_accel_z= self.bno.linear_acceleration         #线性加速度 
         quat_i, quat_j, quat_k, quat_real = self.bno.quaternion                            #四元数
         
-        Q=self.QuaternionMultiply(quat_real,quat_i, quat_j, quat_k)
+        Q=self.QuaternionMultiply([quat_real,quat_i, quat_j, quat_k])
         roll,pitch,_=self.QuaternionToEuler(Q)
 
         self.pitch=round(pitch ,2)

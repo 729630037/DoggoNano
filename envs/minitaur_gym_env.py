@@ -237,6 +237,28 @@ class MinitaurGymEnv(gym.Env):
     self._urdf_version = urdf_version
     self._ground_id = None
     self._reflection = reflection
+    self._signal_type = signal_type
+    # gait inputs
+    self.step_length = step_length
+    self.step_rotation = step_rotation
+    self.step_angle = step_angle
+    self.step_period = step_period
+    # envs inputs
+    self._target_orient = target_orient
+    self._init_orient = init_orient
+    self._target_position = target_position
+    self._start_position = start_position
+    observation_high = (self._get_observation_upper_bound() + OBSERVATION_EPS)
+    observation_low = (self._get_observation_lower_bound() - OBSERVATION_EPS)
+    action_dim = NUM_MOTORS
+    action_high = np.array([self._action_bound] * action_dim)
+    self.action_space = spaces.Box(-action_high, action_high)
+    self.observation_space = spaces.Box(observation_low, observation_high)
+    self.action=[0.0]*8
+    self.viewer = None
+    self._hard_reset = hard_reset  # This assignment need to be after reset()
+    self.env_goal_reached = False
+    self._use_imu=use_imu
     self._env_randomizers = convert_to_list(env_randomizer) if env_randomizer else []
     if self._is_render:
       self._pybullet_client = bc.BulletClient(connection_mode=pybullet.GUI)
@@ -244,17 +266,7 @@ class MinitaurGymEnv(gym.Env):
       self._pybullet_client = bc.BulletClient()
     if self._urdf_version is None:
       self._urdf_version = DEFAULT_URDF_VERSION
-    self._pybullet_client.setPhysicsEngineParameter(enableConeFriction=0)
-    self._signal_type = signal_type
-    self._use_imu=use_imu
-    if self._use_imu:
-      from drivers.imu_BNO008X_i2c import IMU      
-      self._imu=IMU()
-    # gait inputs
-    self.step_length = step_length
-    self.step_rotation = step_rotation
-    self.step_angle = step_angle
-    self.step_period = step_period
+    self._pybullet_client.setPhysicsEngineParameter(enableConeFriction=0)              
     # poses inputs
     self._base_x = 0.01
     self._base_y = base_y
@@ -262,11 +274,6 @@ class MinitaurGymEnv(gym.Env):
     self._base_roll = base_roll
     self._base_pitch = base_pitch
     self._base_yaw = base_yaw
-    # envs inputs
-    self._target_orient = target_orient
-    self._init_orient = init_orient
-    self._target_position = target_position
-    self._start_position = start_position
     # computation support params
     self._random_pos_target = False
     self._random_pos_start = False
@@ -291,16 +298,6 @@ class MinitaurGymEnv(gym.Env):
     self.terrain = Terrain(self._terrain_type, self._terrain_id)
     if self._terrain_type is not "plane":
         self.terrain.generate_terrain(self)
-    observation_high = (self._get_observation_upper_bound() + OBSERVATION_EPS)
-    observation_low = (self._get_observation_lower_bound() - OBSERVATION_EPS)
-    action_dim = NUM_MOTORS
-    action_high = np.array([self._action_bound] * action_dim)
-    self.action_space = spaces.Box(-action_high, action_high)
-    self.observation_space = spaces.Box(observation_low, observation_high)
-    self.action=[0.0]*8
-    self.viewer = None
-    self._hard_reset = hard_reset  # This assignment need to be after reset()
-    self.env_goal_reached = False
 
   def close(self):
     if self._env_step_counter > 0:
@@ -548,6 +545,8 @@ class MinitaurGymEnv(gym.Env):
 
   def _get_imu_observation(self):
     observation=self._imu.DataHandle()
+    # print("Roll:%f, Pitch:%f, RollVel:%f, PitchVel:%f, XVel:%f."%(observation[0],observation[1],observation[2],observation[3],self._imu.x_vel))
+
     return observation
 
   def _get_observation(self):

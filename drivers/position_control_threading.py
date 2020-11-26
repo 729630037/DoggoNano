@@ -4,8 +4,7 @@ from math import pi as PI, degrees, radians, sin, cos,sqrt,pow,atan2,acos
 import math
 
 import time
-from envs.drivers.driver import Drive
-from envs.drivers import imu_BNO008X_uart
+from .driver import Drive
 import threading
 import queue
 import signal

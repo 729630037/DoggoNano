@@ -64,7 +64,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
               gamma_amplitude=0.8,
               terrain_type="random",
               terrain_id=None,
-              use_imu=False
+              use_imu=True
               ):
     """Initialize the minitaur trotting gym environment."""
 
@@ -86,6 +86,33 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
     self._use_angle_in_observation = use_angle_in_observation
     self._signal_type = signal_type
 
+    # (eventually) allow different feedback ranges/action spaces for different signals
+    action_max = {
+        'ik': 0.4,
+        'ol': 0.01
+    }
+    action_dim_map = {
+        'ik': 2,
+        'ol': 8
+    }
+    action_dim = action_dim_map[self._signal_type]
+    action_high = np.array([action_max[self._signal_type]] * action_dim)
+    self.action_space = spaces.Box(-action_high, action_high)
+    # For render purpose.
+    self._cam_dist = 1.0
+    self._cam_yaw = 3.0
+    self._cam_pitch = -30
+
+    self._gait_planner = GaitPlanner("trot")
+    self._kinematics = kinematics.Kinematics()
+    self.goal_reached = False
+    self._stay_still = stay_still
+    self.is_terminating = False
+    self._use_imu=use_imu    
+    if self._use_imu:
+      from drivers.imu_BNO008X_i2c import IMU      
+      self._imu=IMU()
+    self._fd=open("dd.txt","w")
     super(MinitaurTrottingEnv,
           self).__init__(
                         accurate_motor_model_enabled=accurate_motor_model_enabled,
@@ -112,38 +139,18 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
                         use_imu=use_imu
                         )
 
-    # (eventually) allow different feedback ranges/action spaces for different signals
-    action_max = {
-        'ik': 0.4,
-        'ol': 0.01
-    }
-    action_dim_map = {
-        'ik': 2,
-        'ol': 8
-    }
-    action_dim = action_dim_map[self._signal_type]
-    action_high = np.array([action_max[self._signal_type]] * action_dim)
-    self.action_space = spaces.Box(-action_high, action_high)
-    # For render purpose.
-    self._cam_dist = 1.0
-    self._cam_yaw = 3.0
-    self._cam_pitch = -30
 
-    self._gait_planner = GaitPlanner("trot")
-    self._kinematics = kinematics.Kinematics()
-    self.goal_reached = False
-    self._stay_still = stay_still
-    self.is_terminating = False
-
-    # self._fd=open("dd.txt","w")
 
   def reset(self):
-    if self._random_init_pose==True:
-      self._init_pose = np.random.uniform(np.array(self._init_pose) - np.array([0.08]*8) ,
-                                          np.array(self._init_pose) + np.array([0.08]*8)) 
+    if self._use_imu:
+      return self._get_imu_observation()   
+
     initial_motor_angles = self._convert_from_leg_model(self._init_pose)
     super(MinitaurTrottingEnv, self).reset(initial_motor_angles=initial_motor_angles,
                                           reset_duration=0.5)
+    if self._random_init_pose==True:
+      self._init_pose = np.random.uniform(np.array(self._init_pose) - np.array([0.08]*8) ,
+                                          np.array(self._init_pose) + np.array([0.08]*8)) 
     self.goal_reached = False
     self.is_terminating = False
     # self._stay_still = False
@@ -361,8 +368,8 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
         percentBack = (gp-self._flightPercent)/(1.0-self._flightPercent)
         gamma = (-1+gam_amp)* math.sin(math.pi*percentBack)
         theta = the_amp * math.cos(math.pi*percentBack+math.pi)
-    # x,y=self._kinematics.solve_K([theta,gamma])
-    # self._fd.write(str(x)+" "+str(y)+'\n') 
+    x,y=self._kinematics.solve_K([theta,gamma])
+    self._fd.write(str(x)+" "+str(y)+'\n') 
     return gamma, theta
 
   def _signal(self, t, action):
