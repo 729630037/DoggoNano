@@ -35,10 +35,10 @@ class PositionControl:
                 init_gamma=1.1,
                 gamma_amplitude=0.8,
                 use_imu=False,
-                step_length=1.5,
+                step_length=None,
                 step_rotation=None,
                 step_angle=None,
-                step_period=0.5,
+                step_period=None,
                 ):
         self.theta_offset = np.zeros(4)
         self.gamma_offset = np.zeros(4)
@@ -70,7 +70,10 @@ class PositionControl:
         self.thread_odrv2 = None
         self.thread_odrv3 = None
         self.lock = threading.Lock()
+        self.condition=threading.Condition()       
         self.ready=[0]*4
+        self.motor_queue=[]
+        self.max_size=8           
         self.LegGain=[80,0.5,50,0.5]
         self._reset_time=time.time()       
 
@@ -106,6 +109,8 @@ class PositionControl:
     def _IK_signal(self, t, action):
         base_pos_coeff = self._evaluate_base_stage_coeff(t, width=1.5)
         gait_stage_coeff = self._evaluate_gait_stage_coeff(t, action)
+        step = 1.5
+        period = 1/self.step_frequency
         base_x = self._base_x
         position = np.array([base_x,
                                 self._base_y * base_pos_coeff,
@@ -113,10 +118,10 @@ class PositionControl:
         orientation = np.array([self._base_roll * base_pos_coeff,
                                 self._base_pitch * base_pos_coeff,
                                 self._base_yaw * base_pos_coeff])
-        step_length = self.step_length * gait_stage_coeff
+        step_length = (self.step_length if self.step_length is not None else step) * gait_stage_coeff
         step_rotation = (self.step_rotation if self.step_rotation is not None else 0.0)
         step_angle = self.step_angle if self.step_angle is not None else 0.0
-        step_period = self.step_period
+        step_period = (self.step_period if self.step_period is not None else period)
 
         direction = -1.0 if step_length < 0 else 1.0
         frames = self._gait_planner.loop(t,step_length, step_angle, step_rotation, step_period, direction)
@@ -297,7 +302,23 @@ class PositionControl:
         self.odrv3.SetCouplePosition(0,1.4)
         self.ready[3]=1                     
         self.lock.release()        
-         
+
+    def size(self):
+        self.lock.acquire()
+        size=len(self.queue)
+        self.lock.release()
+        return size
+
+    def MotorControl(self):
+        if pos_control.ready!=[1]*4 and self.max_size !=0 and self.size()>self.max_size:
+            raise("Motors all not ready!")
+        self.lock.acquire()
+        self.odrv3=Drive('206D39A54D4D')  #3 206D39A54D4D
+        self.odrv3.SetCoupleGain(self.LegGain)
+        self.odrv3.SetCouplePosition(0,1.4)
+        self.ready[3]=1                     
+        self.lock.release()    
+
     def is_valid_thetagamma(self,theta_gamma):
         for i in range(4):
             if theta_gamma[i]>0.8 or theta_gamma[i]<-0.8 or theta_gamma[i+4]>2.2:
