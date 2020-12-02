@@ -1,75 +1,166 @@
 import os,sys
+
+from tensorflow.python.ops.variable_scope import _ReuseMode
 sys.path.append(os.path.abspath(os.path.join(os.getcwd())))
-sys.path.append('/home/nano/minitaur-nano')
-#print(sys.path)
 from math import pi as PI, degrees, radians, sin, cos,sqrt,pow,atan2,acos
 import math
-import time
-import datetime
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-from envs.drivers.driver import Drive
+import numpy as np
 
+import time
+import threading
+import queue
+import signal
+import matplotlib.pyplot as plt
+
+from envs.gait_planner import GaitPlanner 
+from envs import kinematics
 
 
 xdata,tdata,ydata,thetadata,gammadata=[],[],[],[],[]
-GaitParams={'stance_height':0.18,'down_amp':0.18,'up_amp':0.18,'flight_percent':0.5,'step_length':0.0,'freq':1.0}
+TrotGaitParams={'stance_height':0.17,'down_amp':0.04,'up_amp':0.06,'flight_percent':0.35,'step_length':0.15,'freq':2.0}
+WalkGaitParams={'stance_height':0.15,'down_amp':0.04,'up_amp':0.04,'flight_percent':0.25,'step_length':0.1,'freq':2.0}
+HopGaitParams={'stance_height':0.15,'down_amp':0.05,'up_amp':0.05,'flight_percent':0.2,'step_length':0.0,'freq':1.0}
 USE_REINFORCEMENT_LEARNING=True
-t_init=time.time()
+
+
+flag=True
 
 class PositionControl:
-    def __init__(self):
+    def __init__(self,
+                signal_type="ol",
+                stay_still=False,
+                step_frequency=2.0,
+                init_theta=0.0,
+                theta_amplitude=0.4,   #0.35rad=20.05度 0.3rad=17.19度
+                init_gamma=1.05,
+                gamma_amplitude=0.8,
+                use_imu=False,
+                step_length=1.5,
+                step_rotation=None,
+                step_angle=None,
+                step_period=0.5,
+                ):
+        self.theta_offset = np.zeros(4)
+        self.gamma_offset = np.zeros(4)
+        self._gait_planner = GaitPlanner("trot")
+        self._kinematics = kinematics.Kinematics()
+        self.signal_type=signal_type    
+        self.stay_still = stay_still
+        self.use_imu=use_imu               
         self.stanceHeight=0.17
         self.downAMP=0.04
         self.upAMP=0.06
         self.flightPercent=0.5
         self.stepLength=0.15
-        self.fre=2
+        self.step_frequency=step_frequency
         self.L1 = 0.09
         self.L2 = 0.162
         self._init_pose = [
-            0, 0, 0, 0, 2.1, 2.1,
-            2.1, 2.1
+            init_theta, init_theta, init_theta, init_theta, init_gamma, init_gamma,
+            init_gamma, init_gamma
         ]
+        self.theta_amplitude = theta_amplitude
+        self.gamma_amplitude = gamma_amplitude
+        self.step_length = step_length
+        self.step_rotation = step_rotation
+        self.step_angle = step_angle
+        self.step_period = step_period
+        self.thread_odrv0 = None               
+        self.thread_odrv1 = None             
+        self.thread_odrv2 = None
+        self.thread_odrv3 = None
+        self.lock = threading.Lock()
+        self.ready=[0]*4
+        self.LegGain=[80,0.5,50,0.5]
+        self._reset_time=time.time()       
 
-
-        # self.odrv0=Drive('206539A54D4D')  #1   207339A54D4D
-        # self.odrv1=Drive('207339A54D4D')   #0 206539A54D4D
-        # self.odrv2=Drive('206039A54D4D')  #2 206039A54D4D
-        # self.odrv3=Drive('206D39A54D4D')  #3 206D39A54D4D
-        self.LegGain={'kp_theta':50,'kd_theta':0.5,'kp_gamma':50,'kd_gamma':0.5}
-
-    def Gen_signal(self,t, phase):
-        gp=(t*self.fre+phase)%1
-        if gp<= self.flightPercent:
-            extension = -0.8 * math.sin(2 * math.pi * gp)
+    @staticmethod
+    def _evaluate_gait_stage_coeff(current_t, action, end_t=0.0):
+        # ramp function(斜坡函数)
+        p = 0.8 + action[0]
+        if end_t <= current_t <= p + end_t:
+            return current_t
         else:
-            extension = -0.2 * math.sin(2 * math.pi *gp)
-        swing = -0.4 * math.sin(2 * math.pi * gp-PI/2) 
-        return extension, swing
+            return 1.0
 
-    def Signal(self,t):
-        # Generates the leg trajectories for the two digonal pair of legs.
-        ext_first_pair, sw_first_pair = self.Gen_signal(t, 0)
-        ext_second_pair, sw_second_pair = self.Gen_signal(t, 0.5)
+    def _IK_signal(self, t, action):
+        gait_stage_coeff = self._evaluate_gait_stage_coeff(t, action)
+        position = np.array([0,0,0])
+        orientation = np.array([0,0,0])
+        step_length = self.step_length * gait_stage_coeff
+        step_rotation = (self.step_rotation if self.step_rotation is not None else 0.0)
+        step_angle = self.step_angle if self.step_angle is not None else 0.0
+        step_period = self.step_period
 
-        trotting_signal = [
-            sw_first_pair, sw_second_pair, sw_second_pair, sw_first_pair, ext_first_pair,
-            ext_second_pair, ext_second_pair, ext_first_pair
-        ]
-        signal = [self._init_pose[i]+trotting_signal[i] for i in range(0,len(trotting_signal))]
+        direction = -1.0 if step_length < 0 else 1.0
+        frames = self._gait_planner.loop(t,step_length, step_angle, step_rotation, step_period, direction)
+        fr_angles, fl_angles, br_angles, bl_angles, _ = self._kinematics.solve(orientation, position, frames)
+        signal = np.array([fl_angles[0],bl_angles[0],fr_angles[0],br_angles[0],
+                    fl_angles[1],bl_angles[1],fr_angles[1],br_angles[1]])
         return signal
 
-    def CartesianToThetaGamma(self,x,y,leg_direction):
-        L = pow((pow(x,2.0) + pow(y,2.0)), 0.5)
-        cos_param = (pow(self.L1,2.0) + pow(L,2.0) - pow(self.L2,2.0)) / (2.0*self.L1*L)
-        theta = atan2(leg_direction * x, y)
-        if(cos_param<=1 and cos_param>=-1):
-            gamma = acos(cos_param)
-        return theta,gamma
+    def _open_loop_signal(self, t):
+        # Generates the leg trajectories for the two digonal pair of legs.
+        gamma_first, theta_first = self._gen_signal(t, 0)
+        gamma_second, theta_second = self._gen_signal(t, 0.5)
+
+        trotting_signal = np.array([
+            theta_first, theta_second, theta_second, theta_first, gamma_first,
+            gamma_second, gamma_second, gamma_first
+        ]) 
+        signal = np.array(self._init_pose) + trotting_signal
+        return signal
+
+    def _gen_signal(self, t, phase):
+        the_amp = self.theta_amplitude
+        gam_amp = self.gamma_amplitude
+        start_coeff = self._evaluate_gait_stage_coeff(t, [0.0])
+        # the_amp *= start_coeff
+        # gam_amp *= start_coeff
+
+        gp=(t*self.step_frequency+phase)%1
+        if gp<= self.flightPercent:
+            gamma = gam_amp * math.sin(math.pi/self.flightPercent* gp)
+            theta = the_amp* math.cos(math.pi/self.flightPercent* gp) 
+        else:
+            percentBack = (gp-self.flightPercent)/(1.0-self.flightPercent)
+            gamma = (-1+gam_amp)* math.sin(math.pi*percentBack)
+            theta = the_amp * math.cos(math.pi*percentBack+math.pi)
+        return gamma, theta
+
+    def Signal(self, t, action):
+        if self.signal_type == 'ik':
+            return self._IK_signal(t, action)
+        elif self.signal_type == 'ol':
+            return self._open_loop_signal(t)
+        elif self.signal_type == 'po':
+            return self.Gait(t)
+        
+    def TransformActionToMotorCommand(self, t, action):
+        if self.stay_still:
+            return self._init_pose
+        action[0:4] += self.theta_offset
+        action[4:8] += self.gamma_offset
+        action += self.Signal(t,action)
+        action[2]=-action[3]
+        action[3]=-action[2]
+        action[6]=action[7]
+        action[7]=action[6]        
+        return action
+
+    def SetParams(self,GaitParams=TrotGaitParams):
+        self.stanceHeight=GaitParams['stance_height']
+        self.downAMP=GaitParams['down_amp']
+        self.upAMP=GaitParams['up_amp']
+        self.flightPercent=GaitParams['flight_percent']
+        self.stepLength=GaitParams['step_length']
+        self.step_frequency=GaitParams['freq']
+
+    def SetGain(self,kp_theta,kd_theta,kp_gamma,kd_gamma):
+        self.LegGain=[kp_theta,kd_theta,kp_gamma,kd_gamma]
 
     def Sintrajectory(self,t,gait_offset):
-        gp=(t*self.fre+gait_offset)%1
+        gp=(t*self.step_frequency+gait_offset)%1
         if gp<= self.flightPercent:
             x=gp/self.flightPercent*self.stepLength-self.stepLength/2
             y = -self.upAMP*sin(PI*gp/self.flightPercent) + self.stanceHeight
@@ -79,35 +170,29 @@ class PositionControl:
             y = self.downAMP*sin(PI*percentBack) + self.stanceHeight
         return x,y
 
-    def CoupledMoveLeg(self,t,odrive,gait_offset,leg_direction):
+    def CoupledMoveLeg(self,t,gait_offset,leg_direction):
         x,y=self.Sintrajectory(t,gait_offset)
-        xdata.append(x)
-        ydata.append(y)      
-        theta,gamma=self.CartesianToThetaGamma(x,y,leg_direction) 
-        # if(odrive==self.odrv0):
-        thetadata.append(theta)
-        gammadata.append(gamma)
-        #print(theta,gamma)
-        #odrive.SetCouplePosition(theta,gamma)
+        # xdata.append(x)
+        # ydata.append(y)
+        L = pow((pow(x,2.0) + pow(y,2.0)), 0.5)
+        cos_param = (pow(self.L1,2.0) + pow(L,2.0) - pow(self.L2,2.0)) / (2.0*self.L1*L)
+        theta = atan2(leg_direction * x, y)
+        if(cos_param>=1 or cos_param<=-1):
+            raise ValueError("cos_param is out of bounds.")
+        gamma = np.arccos(cos_param)        
+        return theta,gamma
 
     def Gait(self,t,leg0_offset=0,leg1_offset=0.5,leg2_offset=0,leg3_offset=0.5):
         if (not self.IsValidGaitParams()) or (not self.IsValidLegGain()):
             return      
         leg_direction=-1
-        self.CoupledMoveLeg(t,'self.odrv0',leg0_offset,leg_direction) 
-        #self.CoupledMoveLeg(t,'self.odrv1',leg1_offset,leg_direction)
+        theta0,gamma0=self.CoupledMoveLeg(t,leg0_offset,leg_direction) 
+        theta1,gamma1=self.CoupledMoveLeg(t,leg1_offset,leg_direction)
         leg_direction=1    
-        #self.CoupledMoveLeg(t,'self.odrv2',leg2_offset,leg_direction)
-        #self.CoupledMoveLeg(t,'self.odrv3',leg3_offset,leg_direction)
-
-    def RL_Gait(self,action):
-        flag=True
-        theta_gamma=self.TransformActionToThetagamma(action)
-        flag=self.IsValidThetaGamma(theta_gamma)
-        if not flag:
-            return
-        for i in range(4):
-            self.odrv0.SetCouplePosition(theta_gamma[i],theta_gamma[4+i])
+        theta2,gamma2=self.CoupledMoveLeg(t,leg2_offset,leg_direction)
+        theta3,gamma3=self.CoupledMoveLeg(t,leg3_offset,leg_direction)
+        thetagamma=[theta0,gamma0,theta1,gamma1,theta2,gamma2,theta3,gamma3]
+        self.Run(thetagamma)
 
     def IsValidGaitParams(self):
         maxL=0.25
@@ -124,149 +209,115 @@ class PositionControl:
             print("Flight percent is invalid");
             return False
 
-        if self.fre < 0:
+        if self.step_frequency < 0:
             print("Frequency cannot be negative")
             return False
 
-        if self.fre > 10.0:
+        if self.step_frequency > 10.0:
             print("Frequency is too high (>10)")
             return False
 
         return True
 
     def IsValidLegGain(self):
-        bad=self.LegGain['kp_theta']<0 or self.LegGain['kd_theta']<0 or self.LegGain['kp_gamma']<0 or self.LegGain['kd_gamma']<0
+        bad=self.LegGain[0]<0 or self.LegGain[1]<0 or self.LegGain[2]<0 or self.LegGain[3]<0
         if bad:
             print("Invalid gains: <0.")
             return False
-
-        bad=bad or self.LegGain['kp_theta']>320 or self.LegGain['kd_theta']>10 or self.LegGain['kp_gamma']>320 or self.LegGain['kd_gamma']>10
-
+        bad=bad or self.LegGain[0]>320 or self.LegGain[1]>10 or self.LegGain[2]>320 or self.LegGain[3]>10
         if bad:
             print("Invalid gains: too high.")
             return False
-
-        bad=bad or (self.LegGain['kp_theta']>200 and self.LegGain['kd_theta']<0.1)
-        bad=bad or (self.LegGain['kp_gamma']>200 and self.LegGain['kd_gamma']<0.1)
-        
+        bad=bad or (self.LegGain[0]>200 and self.LegGain[1]<0.1)
+        bad=bad or (self.LegGain[2]>200 and self.LegGain[3]<0.1)       
         if bad:
             print("Invalid gains: underdamped.")
             return False    
-
         return True
+                           
+         
+    def is_valid_thetagamma(self,theta_gamma):
+        for i in range(4):
+            if theta_gamma[i]>0.8 or theta_gamma[i]<-0.8 or theta_gamma[i+4]>2.2:
+                return True
+        return False
 
-    def TransformActionToThetagamma(self,action):
-        '''
-        minitaur:   0  2             stanford_doggo:    0  3 
-                    1  3                                1  2
-        action=[swing0,swing1,swing2,swing3, extension0,extension1,extension2,extension3]
-        thetagamma=[theta0,theta1,theta2,theta3,gamma0,gamma1,gamma2,gamma3]
-        '''
-        thetagamma=[0]*8
-        thetagamma[0]=action[0]
-        thetagamma[1]=action[1]
-        thetagamma[2]=action[3]
-        thetagamma[3]=action[2]
-        thetagamma[4]=PI-action[4]
-        thetagamma[5]=PI-action[5]
-        thetagamma[6]=PI-action[7]
-        thetagamma[7]=PI-action[6]
-        #print(thetagamma[0])
-        return thetagamma
 
-    def SimToReal(self,action):
-        thetagamma=self.TransformActionToThetagamma(action)
-        if self.IsValidThetaGamma(thetagamma):
-            exit(0)
-        #print(thetagamma[0],thetagamma[4])
-        self.odrv0.SetCouplePosition(thetagamma[0],thetagamma[4])
-        self.odrv1.SetCouplePosition(thetagamma[1],thetagamma[5])        
-        self.odrv2.SetCouplePosition(thetagamma[2],thetagamma[6])
-        self.odrv3.SetCouplePosition(thetagamma[3],thetagamma[7])
+    def Run(self,t,action):
+        theta_gamma=self.TransformActionToMotorCommand(t,action)
+        if self.is_valid_thetagamma(theta_gamma):
+            exit(0)        
+
+
+    def GetThetaGamma(self):
+        return self.odrv0.GetThetaGamma()
 
     def Stop(self):
-        self.odrv0.SetCoupleGain(50,0.5,50,0.5)
-        self.odrv1.SetCoupleGain(50,0.5,50,0.5)
-        self.odrv2.SetCoupleGain(50,0.5,50,0.5)
-        self.odrv3.SetCoupleGain(50,0.5,50,0.5)
+        self.odrv0.SetCoupleGain(self.LegGain)
+        self.odrv1.SetCoupleGain(self.LegGain)
+        self.odrv2.SetCoupleGain(self.LegGain)
+        self.odrv3.SetCoupleGain(self.LegGain)
         self.odrv0.SetCouplePosition(0,1.4)
         self.odrv1.SetCouplePosition(0,1.4)
         self.odrv2.SetCouplePosition(0,1.4)
         self.odrv3.SetCouplePosition(0,1.4)
         pass
 
-    def MotorAngleToThetaGamma(self,pos1,pos2,leg_direction):
-            theta = -leg_direction*(pos1/2.0 - pos2/2.0)
-            gamma = PI-leg_direction*(pos1/2.0 + pos2/2.0)
-            return theta,gamma
+    def CommandAllLegs(self,theta,gamma):
+        self.odrv0.SetCoupleGain(self.LegGain)
+        self.odrv1.SetCoupleGain(self.LegGain)
+        self.odrv2.SetCoupleGain(self.LegGain)
+        self.odrv3.SetCoupleGain(self.LegGain)
+        self.odrv0.SetCouplePosition(theta,gamma)
+        self.odrv1.SetCouplePosition(theta,gamma)
+        self.odrv2.SetCouplePosition(theta,gamma)
+        self.odrv3.SetCouplePosition(theta,gamma) 
 
-    def ThetaGammaToMotorAngle(self,theta,gamma,leg_direction):
-        if leg_direction==-1: 
-            angle1=leg_direction*(PI-theta-gamma)
-            angle0=leg_direction*(PI+theta-gamma)
-        elif leg_direction==1:
-            angle0=leg_direction*(PI-theta-gamma)
-            angle1=leg_direction*(PI+theta-gamma)        
-        return angle0,angle1
+    def Hop(self):
+        self.SetParams(GaitParams=HopGaitParams)
+        theta,gamma=self.CartesianToThetaGamma(0,self.stanceHeight-self.upAMP,1)
+        self.SetGain(120,2,20,2)
+        self.CommandAllLegs(theta,gamma)
+        time.sleep(0.2)
+        theta,gamma=self.CartesianToThetaGamma(0,self.stanceHeight+self.downAMP,1)
+        self.SetGain(120,1,80,1)
+        self.CommandAllLegs(theta,gamma)
+        time.sleep(0.2)
+        theta,gamma=self.CartesianToThetaGamma(0,self.stanceHeight,1)
+        self.SetGain(120,2,20,2)
+        self.CommandAllLegs(theta,gamma)                       
+        time.sleep(0.6)
 
-    def ThetaGammaToCartesian(self,theta,gamma):
-        L=self.L1*cos(gamma)+sqrt(pow(self.L1*cos(gamma),2)-(pow(self.L1,2)-pow(self.L2,2)))
-        x=sin(theta)*L
-        y=cos(theta)*L
-        return x,y
 
-    def LToThetaGamma(self,L):
-        cos_param=(pow(self.L1,2.0) + pow(L,2.0) - pow(self.L2,2.0)) / (2.0*self.L1*L)
-        gamma=acos(cos_param)
-        return gamma
-
-    def IsValidThetaGamma(self,theta_gamma):
-        for i in range(4):
-            if theta_gamma[i]>0.8 or theta_gamma[i]<-0.8 or theta_gamma[i+4]>2.2:
-                return True
-        return False
-
-    def GetThetagamma(self):
-        return self.odrv0.GetThetaGamma()
+def handler(signum, frame):
+    global flag
+    flag=False
 
 if __name__=='__main__':
-    x=PositionControl()
-    #x.Stop()
-    #time.sleep(3)
+    pos_control=PositionControl()
+    fd=open("123.txt",mode='w',encoding='utf-8')      
     t_init=time.time()
     st=t_init
-    # while True:
-    #     t=time.time()-t_init        
-    #     x.Gait(t)
-    #     gammadata.append(x.GetThetagamma())
-    #     # tdata.append(t)
-    #     # print(time.time()-st)        
-    #     # st=time.time()             
-    #     # time.sleep(0.01)
-
-    for i in range(100):
-        t=time.time()-t_init 
-        action=x.Signal(t)
-        thetagamma=x.TransformActionToThetagamma(action) 
-        x1,y1=x.ThetaGammaToCartesian(thetagamma[1],thetagamma[5])      
-        ydata.append(y1)
-        xdata.append(x1)
-        thetadata.append(thetagamma[2])
-        gammadata.append(thetagamma[5])        
-        tdata.append(t)
-        time.sleep(0.01)
-
-    # for i in range(50):
-    #     t=time.time()-t_init 
-    #     x.Gait(t)
-    #     tdata.append(t)        
-    #     time.sleep(0.01)
-
-
-
-    print(time.time()-t_init )
+    a=[]
+    tt=[]
+    while flag:
+        t=time.time()-t_init
+        action=pos_control.TransformActionToMotorCommand(t,[0,0,0,0,0,0,0,0])
+        x,y=pos_control._kinematics.solve_K([action[0],action[4]])
+        fd.write(str(y)+' ')        
+        fd.write(str(x)+'\n')                        
+        if t>1:
+            break
+        time.sleep(0.04)
+    fd.close()
+    with open("123.txt",mode='r') as f:
+        for line in f:
+            roll,hour= line.split()
+            a.append(float(roll))
+            tt.append(float(hour))
     plt.figure()
-    #plt.plot(xdata, ydata)
-    #plt.plot(tdata, thetadata) 
-    plt.plot(tdata, gammadata)        
-    plt.show()     
+    plt.plot(tt, a) 
+    plt.show()    
+
+
+
