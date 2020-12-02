@@ -7,13 +7,13 @@ import math
 import numpy as np
 
 import time
-from .driver import Drive
+from drivers.driver import Drive
 import threading
 import queue
 import signal
 
-from ...envs.gait_planner import GaitPlanner 
-from ...envs import kinematics
+from envs.gait_planner import GaitPlanner 
+from envs import kinematics
 
 
 xdata,tdata,ydata,thetadata,gammadata=[],[],[],[],[]
@@ -27,7 +27,7 @@ flag=True
 
 class PositionControl:
     def __init__(self,
-                signal_type="ik",
+                signal_type="ol",
                 stay_still=False,
                 step_frequency=2.0,
                 init_theta=0.0,
@@ -50,7 +50,7 @@ class PositionControl:
         self.stanceHeight=0.17
         self.downAMP=0.04
         self.upAMP=0.06
-        self.flightPercent=0.35
+        self.flightPercent=0.5
         self.stepLength=0.15
         self.step_frequency=step_frequency
         self.L1 = 0.09
@@ -75,17 +75,6 @@ class PositionControl:
         self._reset_time=time.time()       
 
     @staticmethod
-    def _evaluate_base_stage_coeff(current_t, end_t=0.0, width=0.001):
-        # sigmoid function
-        beta = p = width
-        if p - beta + end_t <= current_t <= p - (beta / 2) + end_t:
-            return (2 / beta ** 2) * (current_t - p + beta) ** 2
-        elif p - (beta/2) + end_t <= current_t <= p + end_t:
-            return 1 - (2 / beta ** 2) * (current_t - p) ** 2
-        else:
-            return 1
-
-    @staticmethod
     def _evaluate_gait_stage_coeff(current_t, action, end_t=0.0):
         # ramp function(斜坡函数)
         p = 0.8 + action[0]
@@ -94,25 +83,10 @@ class PositionControl:
         else:
             return 1.0
 
-    @staticmethod
-    def _evaluate_brakes_stage_coeff(current_t, action, end_t=0.0, end_value=0.0):
-        # ramp function
-        p = 0.8 + action[1]
-        if end_t <= current_t <= p + end_t:
-            return 1 - (current_t - end_t)
-        else:
-            return end_value
-
     def _IK_signal(self, t, action):
-        base_pos_coeff = self._evaluate_base_stage_coeff(t, width=1.5)
         gait_stage_coeff = self._evaluate_gait_stage_coeff(t, action)
-        base_x = self._base_x
-        position = np.array([base_x,
-                                self._base_y * base_pos_coeff,
-                                self._base_z * base_pos_coeff])
-        orientation = np.array([self._base_roll * base_pos_coeff,
-                                self._base_pitch * base_pos_coeff,
-                                self._base_yaw * base_pos_coeff])
+        position = np.array([0,0,0])
+        orientation = np.array([0,0,0])
         step_length = self.step_length * gait_stage_coeff
         step_rotation = (self.step_rotation if self.step_rotation is not None else 0.0)
         step_angle = self.step_angle if self.step_angle is not None else 0.0
@@ -144,12 +118,12 @@ class PositionControl:
         the_amp *= start_coeff
         gam_amp *= start_coeff
 
-        gp=(t*self._step_frequency+phase)%1
-        if gp<= self._flightPercent:
-            gamma = gam_amp * math.sin(math.pi/self._flightPercent* gp)
-            theta = the_amp* math.cos(math.pi/self._flightPercent* gp) 
+        gp=(t*self.step_frequency+phase)%1
+        if gp<= self.flightPercent:
+            gamma = gam_amp * math.sin(math.pi/self.flightPercent* gp)
+            theta = the_amp* math.cos(math.pi/self.flightPercent* gp) 
         else:
-            percentBack = (gp-self._flightPercent)/(1.0-self._flightPercent)
+            percentBack = (gp-self.flightPercent)/(1.0-self.flightPercent)
             gamma = (-1+gam_amp)* math.sin(math.pi*percentBack)
             theta = the_amp * math.cos(math.pi*percentBack+math.pi)
         return gamma, theta
@@ -158,24 +132,16 @@ class PositionControl:
         if self.signal_type == 'ik':
             return self._IK_signal(t, action)
         elif self.signal_type == 'ol':
-            return self._open_loop_signal(t, action)
+            return self._open_loop_signal(t)
         elif self.signal_type == 'po':
             return self.Gait(t)
         
     def TransformActionToMotorCommand(self, t, action):
         if self.stay_still:
             return self._init_pose
-        # Add theta_offset and gamma_offset to mimick the bent legs.
         action[0:4] += self.theta_offset
         action[4:8] += self.gamma_offset
-        # t= time.time()-self._reset_time 
         action += self.Signal(t,action)
-        # x,y=self._kinematics.solve_K([action[0],action[4]])
-        # self._fd.write(str(x)+" "+str(y)+'\n') 
-        # for i in range(0,4):
-        #   np.clip(action[i],-0.45,0.45)
-        # for i in range(4,8):
-        #   np.clip(action[i],0.85,2.35)    
         return action
 
     def SetParams(self,GaitParams=TrotGaitParams):
@@ -265,38 +231,30 @@ class PositionControl:
             return False    
         return True
 
-    def ODrive0Init(self):
-        self.lock.acquire()
+    def ODrive0Init(self):        
         self.odrv0=Drive('206539A54D4D')  #1   207339A54D4D
         self.odrv0.SetCoupleGain(self.LegGain)
         self.odrv0.SetCouplePosition(0,1.4) 
         self.ready[0]=1 
         t=time.time()     
-        self.lock.release()
 
-    def ODrive1Init(self):
-        self.lock.acquire()
+    def ODrive1Init(self):       
         self.odrv1=Drive('207339A54D4D')   #0 206539A54D4D        
         self.odrv1.SetCoupleGain(self.LegGain)
         self.odrv1.SetCouplePosition(0,1.4)
         self.ready[1]=1                    
-        self.lock.release()
 
-    def ODrive2Init(self):
-        self.lock.acquire()        
+    def ODrive2Init(self):                
         self.odrv2=Drive('206039A54D4D')  #2 206039A54D4D        
         self.odrv2.SetCoupleGain(self.LegGain)
         self.odrv2.SetCouplePosition(0,1.4)
         self.ready[2]=1                    
-        self.lock.release()
 
-    def ODrive3Init(self):
-        self.lock.acquire()        
+    def ODrive3Init(self):               
         self.odrv3=Drive('206D39A54D4D')  #3 206D39A54D4D
         self.odrv3.SetCoupleGain(self.LegGain)
         self.odrv3.SetCouplePosition(0,1.4)
-        self.ready[3]=1                     
-        self.lock.release()        
+        self.ready[3]=1                            
          
     def is_valid_thetagamma(self,theta_gamma):
         for i in range(4):
@@ -318,14 +276,14 @@ class PositionControl:
         self.thread_odrv2.start()
         self.thread_odrv3.start()
 
-    def Run(self,action,t):
-        theta_gamma=self._transform_action_to_motor_command(action,t)
+    def Run(self,t,action):
+        theta_gamma=self.TransformActionToMotorCommand(t,action)
         if self.is_valid_thetagamma(theta_gamma):
             exit(0)        
         self.odrv0.SetCouplePosition(theta_gamma[0],theta_gamma[4])       
         self.odrv1.SetCouplePosition(theta_gamma[1],theta_gamma[5])        
-        self.odrv2.SetCouplePosition(theta_gamma[2],theta_gamma[6])        
-        self.odrv3.SetCouplePosition(theta_gamma[3],theta_gamma[7])
+        self.odrv2.SetCouplePosition(-theta_gamma[3],theta_gamma[7])        
+        self.odrv3.SetCouplePosition(-theta_gamma[2],theta_gamma[6])
 
     def GetThetaGamma(self):
         return self.odrv0.GetThetaGamma()
