@@ -44,13 +44,13 @@ stime=time_init
 
 
 while flag:
-    action_step = saved_policy.action(time_step)
-    proto_tensor=tf.make_tensor_proto(action_step.action)
-    action=tf.make_ndarray(proto_tensor)
+    # action_step = saved_policy.action(time_step)
+    # proto_tensor=tf.make_tensor_proto(action_step.action)
+    # action=tf.make_ndarray(proto_tensor)
     action=[[0,0,0,0,0,0,0,0]]
     pos_control.Run(time.time()-time_init,action[0])  
-    time_step=[0,0,0,[0,0,0,0]]
-    time_step=convert_to_tensor(time_step)
+    # time_step=[0,0,0,[0,0,0,0]]
+    # time_step=convert_to_tensor(time_step)
     print(time.time()-stime)
     stime=time.time()
 
