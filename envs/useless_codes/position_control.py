@@ -7,10 +7,10 @@ import math
 import numpy as np
 
 import time
-from drivers.driver import Drive
 import threading
 import queue
 import signal
+import matplotlib.pyplot as plt
 
 from envs.gait_planner import GaitPlanner 
 from envs import kinematics
@@ -32,7 +32,7 @@ class PositionControl:
                 step_frequency=2.0,
                 init_theta=0.0,
                 theta_amplitude=0.4,   #0.35rad=20.05度 0.3rad=17.19度
-                init_gamma=2.1,
+                init_gamma=1.05,
                 gamma_amplitude=0.8,
                 use_imu=False,
                 step_length=1.5,
@@ -114,17 +114,17 @@ class PositionControl:
     def _gen_signal(self, t, phase):
         the_amp = self.theta_amplitude
         gam_amp = self.gamma_amplitude
-        # start_coeff = self._evaluate_gait_stage_coeff(t, [0.0])
+        start_coeff = self._evaluate_gait_stage_coeff(t, [0.0])
         # the_amp *= start_coeff
         # gam_amp *= start_coeff
 
         gp=(t*self.step_frequency+phase)%1
         if gp<= self.flightPercent:
-            gamma = -gam_amp * math.sin(math.pi/self.flightPercent* gp)
+            gamma = gam_amp * math.sin(math.pi/self.flightPercent* gp)
             theta = the_amp* math.cos(math.pi/self.flightPercent* gp) 
         else:
             percentBack = (gp-self.flightPercent)/(1.0-self.flightPercent)
-            gamma = (1-gam_amp)* math.sin(math.pi*percentBack)
+            gamma = (-1+gam_amp)* math.sin(math.pi*percentBack)
             theta = the_amp * math.cos(math.pi*percentBack+math.pi)
         return gamma, theta
 
@@ -142,28 +142,11 @@ class PositionControl:
         action[0:4] += self.theta_offset
         action[4:8] += self.gamma_offset
         action += self.Signal(t,action)
-        theta_gamma=self.TransformActionToThetagamma(action)
-        return theta_gamma
-
-    def TransformActionToThetagamma(self,action):
-        '''
-        minitaur:   0  2             stanford_doggo:    0  3
-                    1  3                                1  2
-        action=[swing0,swing1,swing2,swing3, extension0,extension1,extension2,extension3]
-        theta_gamma=[theta0,theta1,theta2,theta3,gamma0,gamma1,gamma2,gamma3]
-        '''
-        theta_gamma=[0]*8
-        theta_gamma[0]=action[0]
-        theta_gamma[1]=action[1]
-        theta_gamma[2]=-action[3]
-        theta_gamma[3]=-action[2]
-        theta_gamma[4]=PI-action[4]
-        theta_gamma[5]=PI-action[5]
-        theta_gamma[6]=PI-action[7]
-        theta_gamma[7]=PI-action[6]
-        if self.is_valid_thetagamma(theta_gamma):
-            exit(0)
-        return theta_gamma
+        action[2]=-action[3]
+        action[3]=-action[2]
+        action[6]=action[7]
+        action[7]=action[6]        
+        return action
 
     def SetParams(self,GaitParams=TrotGaitParams):
         self.stanceHeight=GaitParams['stance_height']
@@ -211,30 +194,47 @@ class PositionControl:
         thetagamma=[theta0,gamma0,theta1,gamma1,theta2,gamma2,theta3,gamma3]
         self.Run(thetagamma)
 
-    def ODrive0Init(self):        
-        self.odrv0=Drive('206539A54D4D')  #1   207339A54D4D
-        self.odrv0.SetCoupleGain(self.LegGain)
-        self.odrv0.SetCouplePosition(0,1.4) 
-        self.ready[0]=1 
-        t=time.time()     
+    def IsValidGaitParams(self):
+        maxL=0.25
+        minL=0.08
+        if (self.stanceHeight+self.downAMP)>maxL or sqrt(pow(self.stanceHeight,2))+pow(self.stepLength/2,2)>maxL:
+            print("Gait overextends leg")
+            return False
 
-    def ODrive1Init(self):       
-        self.odrv1=Drive('207339A54D4D')   #0 206539A54D4D        
-        self.odrv1.SetCoupleGain(self.LegGain)
-        self.odrv1.SetCouplePosition(0,1.4)
-        self.ready[1]=1                    
+        if self.stanceHeight-self.upAMP<minL:
+            print("Gait underextends leg")
+            return False
 
-    def ODrive2Init(self):                
-        self.odrv2=Drive('206039A54D4D')  #2 206039A54D4D        
-        self.odrv2.SetCoupleGain(self.LegGain)
-        self.odrv2.SetCouplePosition(0,1.4)
-        self.ready[2]=1                    
+        if self.flightPercent <= 0 or self.flightPercent > 1.0:
+            print("Flight percent is invalid");
+            return False
 
-    def ODrive3Init(self):               
-        self.odrv3=Drive('206D39A54D4D')  #3 206D39A54D4D
-        self.odrv3.SetCoupleGain(self.LegGain)
-        self.odrv3.SetCouplePosition(0,1.4)
-        self.ready[3]=1                            
+        if self.step_frequency < 0:
+            print("Frequency cannot be negative")
+            return False
+
+        if self.step_frequency > 10.0:
+            print("Frequency is too high (>10)")
+            return False
+
+        return True
+
+    def IsValidLegGain(self):
+        bad=self.LegGain[0]<0 or self.LegGain[1]<0 or self.LegGain[2]<0 or self.LegGain[3]<0
+        if bad:
+            print("Invalid gains: <0.")
+            return False
+        bad=bad or self.LegGain[0]>320 or self.LegGain[1]>10 or self.LegGain[2]>320 or self.LegGain[3]>10
+        if bad:
+            print("Invalid gains: too high.")
+            return False
+        bad=bad or (self.LegGain[0]>200 and self.LegGain[1]<0.1)
+        bad=bad or (self.LegGain[2]>200 and self.LegGain[3]<0.1)       
+        if bad:
+            print("Invalid gains: underdamped.")
+            return False    
+        return True
+                           
          
     def is_valid_thetagamma(self,theta_gamma):
         for i in range(4):
@@ -242,28 +242,12 @@ class PositionControl:
                 return True
         return False
 
-    def Start(self):        
-        self.thread_odrv0 = threading.Thread(target=self.ODrive0Init)
-        self.thread_odrv1 = threading.Thread(target=self.ODrive1Init)
-        self.thread_odrv2 = threading.Thread(target=self.ODrive2Init)
-        self.thread_odrv3 = threading.Thread(target=self.ODrive3Init)
-        self.thread_odrv0.setDaemon(True)                       # 当主线程结束，读线程和主线程一并退出
-        self.thread_odrv1.setDaemon(True)                       # 当主线程结束，读线程和主线程一并退出
-        self.thread_odrv2.setDaemon(True)                       # 当主线程结束，读线程和主线程一并退出
-        self.thread_odrv3.setDaemon(True)                       # 当主线程结束，读线程和主线程一并退出
-        self.thread_odrv0.start()
-        self.thread_odrv1.start()
-        self.thread_odrv2.start()
-        self.thread_odrv3.start()
 
     def Run(self,t,action):
         theta_gamma=self.TransformActionToMotorCommand(t,action)
         if self.is_valid_thetagamma(theta_gamma):
             exit(0)        
-        self.odrv0.SetCouplePosition(theta_gamma[0],theta_gamma[4])       
-        self.odrv1.SetCouplePosition(theta_gamma[1],theta_gamma[5])        
-        self.odrv2.SetCouplePosition(theta_gamma[2],theta_gamma[6])        
-        self.odrv3.SetCouplePosition(theta_gamma[3],theta_gamma[7])
+
 
     def GetThetaGamma(self):
         return self.odrv0.GetThetaGamma()
@@ -310,34 +294,30 @@ def handler(signum, frame):
     flag=False
 
 if __name__=='__main__':
-    signal.signal(signal.SIGINT,handler)
     pos_control=PositionControl()
-    pos_control.Start()
-    # fd=open("123.txt",mode='w',encoding='utf-8')      
-    while pos_control.ready!=[1]*4 :
-        pass
-    t=input("please input t:")
-    while t!='t':
-        pass
-    time.sleep(3)
+    fd=open("123.txt",mode='w',encoding='utf-8')      
     t_init=time.time()
     st=t_init
-    #pos_control.SetParams(WalkGaitParams)
+    a=[]
+    tt=[]
     while flag:
         t=time.time()-t_init
-        pos_control.Gait(t)    #walk    
-        # action=pos_control.Signal(t)
-        # pos_control.Run(action)
-        #print(time.time()-st)
-        # observation=imu.ReadDataMsg()
-        #theta,gamma = pos_control.GetThetaGamma()
-        # for i in range(4):
-        #     fd.write(str(observation[i])+' ')        
-        # # fd.write(str(theta)+' '+str(gamma)+' ')
-        # fd.write(str(round(t,2))+'\n')                        
-        # st=time.time()        
-        # #time.sleep(0.02)
-        # if t>8:
-        #     break           
-    pos_control.Stop()
+        action=pos_control.TransformActionToMotorCommand(t,[0,0,0,0,0,0,0,0])
+        x,y=pos_control._kinematics.solve_K([action[0],action[4]])
+        fd.write(str(y)+' ')        
+        fd.write(str(x)+'\n')                        
+        if t>1:
+            break
+        time.sleep(0.04)
+    fd.close()
+    with open("123.txt",mode='r') as f:
+        for line in f:
+            roll,hour= line.split()
+            a.append(float(roll))
+            tt.append(float(hour))
+    plt.figure()
+    plt.plot(tt, a) 
+    plt.show()    
+
+
 

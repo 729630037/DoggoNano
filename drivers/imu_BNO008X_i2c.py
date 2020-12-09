@@ -1,23 +1,34 @@
 # SPDX-FileCopyrightText: 2020 Bryan Siepert, written for Adafruit Industries
 #
 # SPDX-License-Identifier: Unlicense
+from sys import maxsize
 import time
 import board
 import busio
 import adafruit_bno08x
 from adafruit_bno08x.i2c import BNO08X_I2C
 import math
-
+import threading
+import queue
 
 
 class IMU:
-    def __init__(self):
-        i2c = busio.I2C(board.SCL, board.SDA, frequency=200000)
+    def __init__(self,calibration=False):
+        self.calibration=calibration
+        i2c = busio.I2C(board.SCL, board.SDA, frequency=400000)
         self.bno = BNO08X_I2C(i2c,address=0x4b)
-
         self.bno.enable_feature(adafruit_bno08x.BNO_REPORT_LINEAR_ACCELERATION)
         self.bno.enable_feature(adafruit_bno08x.BNO_REPORT_ROTATION_VECTOR)
         self.bno.enable_feature(adafruit_bno08x.BNO_REPORT_GYROSCOPE)
+        if self.calibration:
+            self.bno.enable_feature(adafruit_bno08x.BNO_REPORT_MAGNETOMETER)
+            self.bno.enable_feature(adafruit_bno08x.BNO_REPORT_GAME_ROTATION_VECTOR)
+        self.lock=threading.Lock()
+        self.imu_thread=threading.Thread(target=self.ImuThread)
+        self.imu_thread.setDaemon(True)
+        self.condition=threading.Condition()
+        self.imu_queue=queue.Queue(maxsize=1)
+        self.max_size=1  
 
         self.start_time = time.time()
         self.timeout=0.1
@@ -30,6 +41,35 @@ class IMU:
         self.x_vel=0.0
         self.x_acc=0.0                    
         self.x_distance=0.0
+
+    def IMUCalibration(self):
+        self.bno.begin_calibration()
+        start_time = time.monotonic()
+        calibration_good_at = None  
+        while True:
+            time.sleep(0.1)
+
+            print("Magnetometer:")
+            mag_x, mag_y, mag_z = self.bno.magnetic  # pylint:disable=no-member
+            print("X: %0.6f  Y: %0.6f Z: %0.6f uT" % (mag_x, mag_y, mag_z))
+            print("")
+
+            print("Game Rotation Vector Quaternion:")
+            (game_quat_i,game_quat_j,game_quat_k,game_quat_real) = self.bno.game_quaternion  # pylint:disable=no-member
+            print("I: %0.6f  J: %0.6f K: %0.6f  Real: %0.6f"% (game_quat_i, game_quat_j, game_quat_k, game_quat_real))
+            calibration_status = self.bno.calibration_status
+            print("Magnetometer Calibration quality:",adafruit_bno08x.REPORT_ACCURACY_STATUS[calibration_status]," (%d)" %calibration_status)
+            
+            if not calibration_good_at and calibration_status >= 2:
+                calibration_good_at = time.monotonic()
+            if calibration_good_at and (time.monotonic() - calibration_good_at > 5.0):
+                input_str = input("\n\nEnter S to save or anything else to continue: ")
+                if input_str.strip().lower() == "s":
+                    self.bno.save_calibration_data()
+                    break
+                calibration_good_at = None
+            print("**************************************************************")
+        print("calibration done")
 
     def QuaternionMultiply(self,Q0,Q1=[0,0,-1,0]):
         w0, x0, y0, z0 = Q0
@@ -73,6 +113,12 @@ class IMU:
         qz = math.cos(roll/2) * math.cos(pitch/2) * math.sin(yaw/2) - math.sin(roll/2) * math.sin(pitch/2) * math.cos(yaw/2)
         qw = math.cos(roll/2) * math.cos(pitch/2) * math.cos(yaw/2) + math.sin(roll/2) * math.sin(pitch/2) * math.sin(yaw/2)
 
+    def Size(self):
+        self.lock.acquire()
+        size=len(self.queue)
+        self.lock.release()
+        return size
+
     def DataHandle(self):
         self.dt=round(time.time()-self.then,3)  
         self.then=time.time()  
@@ -95,8 +141,15 @@ class IMU:
         # return [self.roll, self.pitch, self.roll_vel, self.pitch_vel]
         return [self.pitch, self.roll, self.pitch_vel, self.roll_vel]
 
+
+    def ImuThread(self):
+        while True:
+            self.imu_queue.put(self.DataHandle())
+
+
 if __name__=='__main__':
     imu=IMU()
+    # imu.IMUCalibration()
     while True:
         data=imu.DataHandle()
         print("Roll:%f, Pitch:%f, RollVel:%f, PitchVel:%f, XVel:%f."%(data[0],data[1],data[2],data[3],imu.x_vel))

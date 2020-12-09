@@ -1,16 +1,15 @@
 import os,sys
 
-from tensorflow.python.ops.variable_scope import _ReuseMode
 sys.path.append(os.path.abspath(os.path.join(os.getcwd())))
 from math import pi as PI, degrees, radians, sin, cos,sqrt,pow,atan2,acos
 import math
 import numpy as np
 
 import time
+from drivers.driver import Drive
 import threading
-import queue
 import signal
-import matplotlib.pyplot as plt
+import queue
 
 from envs.gait_planner import GaitPlanner 
 from envs import kinematics
@@ -27,12 +26,12 @@ flag=True
 
 class PositionControl:
     def __init__(self,
-                signal_type="ol",
+                signal_type="kl",
                 stay_still=False,
                 step_frequency=2.0,
                 init_theta=0.0,
                 theta_amplitude=0.4,   #0.35rad=20.05度 0.3rad=17.19度
-                init_gamma=1.05,
+                init_gamma=1.1,
                 gamma_amplitude=0.8,
                 use_imu=False,
                 step_length=1.5,
@@ -50,7 +49,7 @@ class PositionControl:
         self.stanceHeight=0.17
         self.downAMP=0.04
         self.upAMP=0.06
-        self.flightPercent=0.5
+        self.flightPercent=0.35
         self.stepLength=0.15
         self.step_frequency=step_frequency
         self.L1 = 0.09
@@ -69,7 +68,8 @@ class PositionControl:
         self.thread_odrv1 = None             
         self.thread_odrv2 = None
         self.thread_odrv3 = None
-        self.lock = threading.Lock()
+        self.odrive_thread= None
+        self.odrive_queue=queue.Queue(maxsize=1)        
         self.ready=[0]*4
         self.LegGain=[80,0.5,50,0.5]
         self._reset_time=time.time()       
@@ -114,7 +114,7 @@ class PositionControl:
     def _gen_signal(self, t, phase):
         the_amp = self.theta_amplitude
         gam_amp = self.gamma_amplitude
-        start_coeff = self._evaluate_gait_stage_coeff(t, [0.0])
+        # start_coeff = self._evaluate_gait_stage_coeff(t, [0.0])
         # the_amp *= start_coeff
         # gam_amp *= start_coeff
 
@@ -133,19 +133,11 @@ class PositionControl:
             return self._IK_signal(t, action)
         elif self.signal_type == 'ol':
             return self._open_loop_signal(t)
-        elif self.signal_type == 'po':
+        else:
             return self.Gait(t)
         
     def TransformActionToMotorCommand(self, t, action):
-        if self.stay_still:
-            return self._init_pose
-        action[0:4] += self.theta_offset
-        action[4:8] += self.gamma_offset
-        action += self.Signal(t,action)
-        action[2]=-action[3]
-        action[3]=-action[2]
-        action[6]=action[7]
-        action[7]=action[6]        
+        action += np.array(self.Signal(t,action))
         return action
 
     def SetParams(self,GaitParams=TrotGaitParams):
@@ -191,8 +183,8 @@ class PositionControl:
         leg_direction=1    
         theta2,gamma2=self.CoupledMoveLeg(t,leg2_offset,leg_direction)
         theta3,gamma3=self.CoupledMoveLeg(t,leg3_offset,leg_direction)
-        thetagamma=[theta0,gamma0,theta1,gamma1,theta2,gamma2,theta3,gamma3]
-        self.Run(thetagamma)
+        thetagamma=[theta0,theta1,-theta3,-theta2,gamma0,gamma1,gamma3,gamma2]
+        return thetagamma
 
     def IsValidGaitParams(self):
         maxL=0.25
@@ -234,20 +226,71 @@ class PositionControl:
             print("Invalid gains: underdamped.")
             return False    
         return True
-                           
-         
+
+    def ODrive0Init(self):        
+        self.odrv0=Drive('206539A54D4D')  #1   207339A54D4D
+        self.odrv0.SetCoupleGain(self.LegGain)
+        self.odrv0.SetCouplePosition(0,1.4) 
+        self.ready[0]=1 
+
+    def ODrive1Init(self):       
+        self.odrv1=Drive('207339A54D4D')   #0 206539A54D4D        
+        self.odrv1.SetCoupleGain(self.LegGain)
+        self.odrv1.SetCouplePosition(0,1.4)
+        self.ready[1]=1                    
+
+    def ODrive2Init(self):                
+        self.odrv2=Drive('206039A54D4D')  #2 206039A54D4D        
+        self.odrv2.SetCoupleGain(self.LegGain)
+        self.odrv2.SetCouplePosition(0,1.4)
+        self.ready[2]=1                    
+
+    def ODrive3Init(self):               
+        self.odrv3=Drive('206D39A54D4D')  #3 206D39A54D4D
+        self.odrv3.SetCoupleGain(self.LegGain)
+        self.odrv3.SetCouplePosition(0,1.4)
+        self.ready[3]=1                            
+
+    def ODriveRun(self):
+        while True:
+            theta_gamma=self.odrive_queue.get()
+            self.odrv0.SetCouplePosition(theta_gamma[0],theta_gamma[4])       
+            self.odrv1.SetCouplePosition(theta_gamma[1],theta_gamma[5])        
+            self.odrv2.SetCouplePosition(-theta_gamma[3],theta_gamma[7])        
+            self.odrv3.SetCouplePosition(-theta_gamma[2],theta_gamma[6])        
+            # self.odrive_queue.task_done()
+
     def is_valid_thetagamma(self,theta_gamma):
         for i in range(4):
             if theta_gamma[i]>0.8 or theta_gamma[i]<-0.8 or theta_gamma[i+4]>2.2:
                 return True
         return False
 
+    def Start(self):        
+        self.thread_odrv0 = threading.Thread(target=self.ODrive0Init,daemon=True)
+        self.thread_odrv1 = threading.Thread(target=self.ODrive1Init,daemon=True)
+        self.thread_odrv2 = threading.Thread(target=self.ODrive2Init,daemon=True)
+        self.thread_odrv3 = threading.Thread(target=self.ODrive3Init,daemon=True)
+        self.odrive_thread = threading.Thread(target=self.ODriveRun,daemon=True)        
+        self.thread_odrv0.start()
+        self.thread_odrv1.start()
+        self.thread_odrv2.start()
+        self.thread_odrv3.start()
+
+    def StopThread(self):
+        self.thread_odrv0.join()
+        self.thread_odrv1.join()
+        self.thread_odrv2.join()
+        self.thread_odrv3.join()       
 
     def Run(self,t,action):
         theta_gamma=self.TransformActionToMotorCommand(t,action)
         if self.is_valid_thetagamma(theta_gamma):
             exit(0)        
-
+        self.odrv0.SetCouplePosition(theta_gamma[0],theta_gamma[4])       
+        self.odrv1.SetCouplePosition(theta_gamma[1],theta_gamma[5])        
+        self.odrv2.SetCouplePosition(-theta_gamma[3],theta_gamma[7])        
+        self.odrv3.SetCouplePosition(-theta_gamma[2],theta_gamma[6])
 
     def GetThetaGamma(self):
         return self.odrv0.GetThetaGamma()
@@ -261,7 +304,6 @@ class PositionControl:
         self.odrv1.SetCouplePosition(0,1.4)
         self.odrv2.SetCouplePosition(0,1.4)
         self.odrv3.SetCouplePosition(0,1.4)
-        pass
 
     def CommandAllLegs(self,theta,gamma):
         self.odrv0.SetCoupleGain(self.LegGain)
@@ -294,30 +336,34 @@ def handler(signum, frame):
     flag=False
 
 if __name__=='__main__':
+    signal.signal(signal.SIGINT,handler)
     pos_control=PositionControl()
-    fd=open("123.txt",mode='w',encoding='utf-8')      
+    pos_control.Start()
+    # fd=open("123.txt",mode='w',encoding='utf-8')      
+    while pos_control.ready!=[1]*4 :
+        pass
+    t=input("please input t:")
+    while t!='t':
+        pass
+    time.sleep(3)
     t_init=time.time()
     st=t_init
-    a=[]
-    tt=[]
+    #pos_control.SetParams(WalkGaitParams)
     while flag:
         t=time.time()-t_init
-        action=pos_control.TransformActionToMotorCommand(t,[0,0,0,0,0,0,0,0])
-        x,y=pos_control._kinematics.solve_K([action[0],action[4]])
-        fd.write(str(y)+' ')        
-        fd.write(str(x)+'\n')                        
-        if t>1:
-            break
-        time.sleep(0.04)
-    fd.close()
-    with open("123.txt",mode='r') as f:
-        for line in f:
-            roll,hour= line.split()
-            a.append(float(roll))
-            tt.append(float(hour))
-    plt.figure()
-    plt.plot(tt, a) 
-    plt.show()    
-
-
+        pos_control.Gait(t)    #walk    
+        # action=pos_control.Signal(t)
+        # pos_control.Run(action)
+        #print(time.time()-st)
+        # observation=imu.ReadDataMsg()
+        #theta,gamma = pos_control.GetThetaGamma()
+        # for i in range(4):
+        #     fd.write(str(observation[i])+' ')        
+        # # fd.write(str(theta)+' '+str(gamma)+' ')
+        # fd.write(str(round(t,2))+'\n')                        
+        # st=time.time()        
+        # #time.sleep(0.02)
+        # if t>8:
+        #     break           
+    pos_control.Stop()
 

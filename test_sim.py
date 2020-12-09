@@ -3,7 +3,6 @@ import envs.tools.bullet_client
 import tensorflow as tf
 from tf_agents.trajectories import time_step as ts
 from tf_agents.environments import suite_pybullet
-sys.dont_write_bytecode = True
 
 def convert_to_tensor(time_step):
     step_type=time_step[0]

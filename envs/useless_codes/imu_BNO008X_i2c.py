@@ -7,7 +7,6 @@ import busio
 import adafruit_bno08x
 from adafruit_bno08x.i2c import BNO08X_I2C
 import math
-import threading
 
 
 
@@ -15,15 +14,10 @@ class IMU:
     def __init__(self):
         i2c = busio.I2C(board.SCL, board.SDA, frequency=200000)
         self.bno = BNO08X_I2C(i2c,address=0x4b)
+
         self.bno.enable_feature(adafruit_bno08x.BNO_REPORT_LINEAR_ACCELERATION)
         self.bno.enable_feature(adafruit_bno08x.BNO_REPORT_ROTATION_VECTOR)
         self.bno.enable_feature(adafruit_bno08x.BNO_REPORT_GYROSCOPE)
-
-        self.lock=threading.Lock()
-        self.thread=None
-        self.condition=threading.Condition()
-        self.queue=[] 
-        self.max_size=4   
 
         self.start_time = time.time()
         self.timeout=0.1
@@ -79,56 +73,27 @@ class IMU:
         qz = math.cos(roll/2) * math.cos(pitch/2) * math.sin(yaw/2) - math.sin(roll/2) * math.sin(pitch/2) * math.cos(yaw/2)
         qw = math.cos(roll/2) * math.cos(pitch/2) * math.cos(yaw/2) + math.sin(roll/2) * math.sin(pitch/2) * math.sin(yaw/2)
 
-    def size(self):
-        self.lock.acquire()
-        size=len(self.queue)
-        self.lock.release()
-        return size
+    def DataHandle(self):
+        self.dt=round(time.time()-self.then,3)  
+        self.then=time.time()  
 
-
-    def push(self):
-        if self.max_size !=0 and self.size()>self.max_size:
-            raise("thread error!")
-        self.lock.acquire()
-
-        # self.dt=round(time.time()-self.then,3)  
-        # self.then=time.time()  
-        gyro_x, gyro_y, _ = self.bno.gyro         #陀螺仪
-        # linear_accel_x,linear_accel_y,linear_accel_z= self.bno.linear_acceleration         #线性加速度 
+        gyro_x, gyro_y, gyro_z = self.bno.gyro         #陀螺仪
+        linear_accel_x,linear_accel_y,linear_accel_z= self.bno.linear_acceleration         #线性加速度 
         quat_i, quat_j, quat_k, quat_real = self.bno.quaternion                            #四元数
         
         Q=self.QuaternionMultiply([quat_real,quat_i, quat_j, quat_k])
         roll,pitch,_=self.QuaternionToEuler(Q)
 
-        pitch=round(pitch ,2)
-        roll=round(roll,2)
-        roll_vel=gyro_x
-        pitch_vel=gyro_y
-        self.queue.append([pitch,roll,pitch_vel,roll_vel])
-        self.lock.release()
-        self.condition.acquire()
-        self.condition.notify()
-        self.condition.release()
+        self.pitch=round(pitch ,2)
+        self.roll=round(roll,2)
+        self.roll_vel=gyro_x
+        self.pitch_vel=gyro_y
+        self.x_acc=linear_accel_x
+        self.x_vel=self.x_acc*self.dt
+        self.x_distance += self.x_vel*self.dt      
 
-def pop(self,block=False,timeout=0):
-    if self.size() ==0:
-        if block:
-            self.condition.acquire()
-            self.condition.wait(timeout=timeout)
-            self.condition.release()
-        else:
-            return None
-    if self.size() ==0:
-        return None    
-    self.lock.acquire()
-    item=self.queue.pop()
-    self.lock.release()
-    return item
-
-    
-
-
-
+        # return [self.roll, self.pitch, self.roll_vel, self.pitch_vel]
+        return [self.pitch, self.roll, self.pitch_vel, self.roll_vel]
 
 if __name__=='__main__':
     imu=IMU()

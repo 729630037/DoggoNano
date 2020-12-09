@@ -14,8 +14,8 @@ t1=[]
 # # plt.plot(t1, theta1)     
 # plt.show()
 
-a=[0.01,0.02,0.03,0.04]
-a[0:1]=a[1:0]
-print(a)
+a=[[1,2,3]]
+a.pop()
+print(len(a))
 # print(a+np.random.normal(scale=0.05, size=len(a)))
 

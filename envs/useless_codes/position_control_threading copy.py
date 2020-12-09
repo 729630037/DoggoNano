@@ -1,6 +1,5 @@
 import os,sys
 
-from tensorflow.python.ops.variable_scope import _ReuseMode
 sys.path.append(os.path.abspath(os.path.join(os.getcwd())))
 from math import pi as PI, degrees, radians, sin, cos,sqrt,pow,atan2,acos
 import math
@@ -9,7 +8,6 @@ import numpy as np
 import time
 from drivers.driver import Drive
 import threading
-import queue
 import signal
 
 from envs.gait_planner import GaitPlanner 
@@ -32,7 +30,7 @@ class PositionControl:
                 step_frequency=2.0,
                 init_theta=0.0,
                 theta_amplitude=0.4,   #0.35rad=20.05度 0.3rad=17.19度
-                init_gamma=1.1,
+                init_gamma=2.1,
                 gamma_amplitude=0.8,
                 use_imu=False,
                 step_length=1.5,
@@ -50,7 +48,7 @@ class PositionControl:
         self.stanceHeight=0.17
         self.downAMP=0.04
         self.upAMP=0.06
-        self.flightPercent=0.5
+        self.flightPercent=0.35
         self.stepLength=0.15
         self.step_frequency=step_frequency
         self.L1 = 0.09
@@ -104,27 +102,27 @@ class PositionControl:
         gamma_first, theta_first = self._gen_signal(t, 0)
         gamma_second, theta_second = self._gen_signal(t, 0.5)
 
-        trotting_signal = np.array([
+        trotting_signal = [
             theta_first, theta_second, theta_second, theta_first, gamma_first,
             gamma_second, gamma_second, gamma_first
-        ]) 
-        signal = np.array(self._init_pose) + trotting_signal
+        ]
+        signal = [self._init_pose[i]+trotting_signal[i] for i in range(0,len(trotting_signal))]        
         return signal
 
     def _gen_signal(self, t, phase):
         the_amp = self.theta_amplitude
         gam_amp = self.gamma_amplitude
-        start_coeff = self._evaluate_gait_stage_coeff(t, [0.0])
-        the_amp *= start_coeff
-        gam_amp *= start_coeff
+        # start_coeff = self._evaluate_gait_stage_coeff(t, [0.0])
+        # the_amp *= start_coeff
+        # gam_amp *= start_coeff
 
         gp=(t*self.step_frequency+phase)%1
         if gp<= self.flightPercent:
-            gamma = gam_amp * math.sin(math.pi/self.flightPercent* gp)
+            gamma = -gam_amp * math.sin(math.pi/self.flightPercent* gp)
             theta = the_amp* math.cos(math.pi/self.flightPercent* gp) 
         else:
             percentBack = (gp-self.flightPercent)/(1.0-self.flightPercent)
-            gamma = (-1+gam_amp)* math.sin(math.pi*percentBack)
+            gamma = (1-gam_amp)* math.sin(math.pi*percentBack)
             theta = the_amp * math.cos(math.pi*percentBack+math.pi)
         return gamma, theta
 
@@ -133,17 +131,9 @@ class PositionControl:
             return self._IK_signal(t, action)
         elif self.signal_type == 'ol':
             return self._open_loop_signal(t)
-        elif self.signal_type == 'po':
+        else:
             return self.Gait(t)
         
-    def TransformActionToMotorCommand(self, t, action):
-        if self.stay_still:
-            return self._init_pose
-        action[0:4] += self.theta_offset
-        action[4:8] += self.gamma_offset
-        action += self.Signal(t,action)
-        return action
-
     def SetParams(self,GaitParams=TrotGaitParams):
         self.stanceHeight=GaitParams['stance_height']
         self.downAMP=GaitParams['down_amp']
@@ -188,7 +178,7 @@ class PositionControl:
         theta2,gamma2=self.CoupledMoveLeg(t,leg2_offset,leg_direction)
         theta3,gamma3=self.CoupledMoveLeg(t,leg3_offset,leg_direction)
         thetagamma=[theta0,gamma0,theta1,gamma1,theta2,gamma2,theta3,gamma3]
-        self.Run(thetagamma)
+        return thetagamma
 
     def IsValidGaitParams(self):
         maxL=0.25
@@ -277,7 +267,7 @@ class PositionControl:
         self.thread_odrv3.start()
 
     def Run(self,t,action):
-        theta_gamma=self.TransformActionToMotorCommand(t,action)
+        theta_gamma=self.Signal(t,action)
         if self.is_valid_thetagamma(theta_gamma):
             exit(0)        
         self.odrv0.SetCouplePosition(theta_gamma[0],theta_gamma[4])       

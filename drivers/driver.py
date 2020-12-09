@@ -1,21 +1,11 @@
 import odrive
 from odrive.enums import *
 
-import os
-import time
-import sys, traceback
-from serial.serialutil import SerialException
-from serial import Serial
-import numpy as np
-import datetime
-#import thread
-
-
 class Drive:
     def __init__(self,serial_num):
         #self.mutex = thread.allocate_lock()
         self.odrv=odrive.find_any(serial_number=serial_num)
-        print('Successfully connecting Odrive'+format(serial_num))
+        print('Successfully connecting ODrive'+format(serial_num))
         #self.serial_number=serial_number
         self.SetCurrentLimit(50)
         self.SetCurrentLimit(50)
