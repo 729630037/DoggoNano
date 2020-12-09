@@ -38,7 +38,7 @@ while input("please input t:")!='t':
 pos_control.StopThread()
 
 imu.imu_thread.start()
-pos_control.odrive_thread.start()
+pos_control.odrives_thread.start()
 
 saved_policy = tf.saved_model.load("policies/policy")
 time_step=[0,0,0,[0,0,0,0]]

@@ -64,15 +64,23 @@ class PositionControl:
         self.step_rotation = step_rotation
         self.step_angle = step_angle
         self.step_period = step_period
-        self.thread_odrv0 = None               
-        self.thread_odrv1 = None             
-        self.thread_odrv2 = None
-        self.thread_odrv3 = None
-        self.odrive_thread= None
+        self.odrv0_thread = None               
+        self.odrv1_thread = None             
+        self.odrv2_thread = None
+        self.odrv3_thread = None
+        self.odrives_thread= None
         self.odrive_queue=queue.Queue(maxsize=1)        
         self.ready=[0]*4
         self.LegGain=[80,0.5,50,0.5]
         self._reset_time=time.time()       
+
+    def Signal(self, t, action):
+        if self.signal_type == 'ik':
+            return self.IK_signal(t, action)
+        elif self.signal_type == 'ol':
+            return self.OpenLoopSignal(t)
+        else:
+            return self.Gait(t)
 
     @staticmethod
     def _evaluate_gait_stage_coeff(current_t, action, end_t=0.0):
@@ -83,7 +91,7 @@ class PositionControl:
         else:
             return 1.0
 
-    def _IK_signal(self, t, action):
+    def IK_signal(self, t, action):
         gait_stage_coeff = self._evaluate_gait_stage_coeff(t, action)
         position = np.array([0,0,0])
         orientation = np.array([0,0,0])
@@ -99,10 +107,10 @@ class PositionControl:
                     fl_angles[1],bl_angles[1],fr_angles[1],br_angles[1]])
         return signal
 
-    def _open_loop_signal(self, t):
+    def OpenLoopSignal(self, t):
         # Generates the leg trajectories for the two digonal pair of legs.
-        gamma_first, theta_first = self._gen_signal(t, 0)
-        gamma_second, theta_second = self._gen_signal(t, 0.5)
+        gamma_first, theta_first = self.GenSignal(t, 0)
+        gamma_second, theta_second = self.GenSignal(t, 0.5)
 
         trotting_signal = np.array([
             theta_first, theta_second, theta_second, theta_first, gamma_first,
@@ -111,7 +119,7 @@ class PositionControl:
         signal = np.array(self._init_pose) + trotting_signal
         return signal
 
-    def _gen_signal(self, t, phase):
+    def GenSignal(self, t, phase):
         the_amp = self.theta_amplitude
         gam_amp = self.gamma_amplitude
         # start_coeff = self._evaluate_gait_stage_coeff(t, [0.0])
@@ -127,15 +135,7 @@ class PositionControl:
             gamma = (-1+gam_amp)* math.sin(math.pi*percentBack)
             theta = the_amp * math.cos(math.pi*percentBack+math.pi)
         return gamma, theta
-
-    def Signal(self, t, action):
-        if self.signal_type == 'ik':
-            return self._IK_signal(t, action)
-        elif self.signal_type == 'ol':
-            return self._open_loop_signal(t)
-        else:
-            return self.Gait(t)
-        
+       
     def TransformActionToMotorCommand(self, t, action):
         action += np.array(self.Signal(t,action))
         return action
@@ -267,21 +267,21 @@ class PositionControl:
         return False
 
     def Start(self):        
-        self.thread_odrv0 = threading.Thread(target=self.ODrive0Init,daemon=True)
-        self.thread_odrv1 = threading.Thread(target=self.ODrive1Init,daemon=True)
-        self.thread_odrv2 = threading.Thread(target=self.ODrive2Init,daemon=True)
-        self.thread_odrv3 = threading.Thread(target=self.ODrive3Init,daemon=True)
-        self.odrive_thread = threading.Thread(target=self.ODriveRun,daemon=True)        
-        self.thread_odrv0.start()
-        self.thread_odrv1.start()
-        self.thread_odrv2.start()
-        self.thread_odrv3.start()
+        self.odrv0_thread = threading.Thread(target=self.ODrive0Init,daemon=True)
+        self.odrv1_thread = threading.Thread(target=self.ODrive1Init,daemon=True)
+        self.odrv2_thread = threading.Thread(target=self.ODrive2Init,daemon=True)
+        self.odrv3_thread = threading.Thread(target=self.ODrive3Init,daemon=True)
+        self.odrives_thread = threading.Thread(target=self.ODriveRun,daemon=True)        
+        self.odrv0_thread.start()
+        self.odrv1_thread.start()
+        self.odrv2_thread.start()
+        self.odrv3_thread.start()
 
     def StopThread(self):
-        self.thread_odrv0.join()
-        self.thread_odrv1.join()
-        self.thread_odrv2.join()
-        self.thread_odrv3.join()       
+        self.odrv0_thread.join()
+        self.odrv1_thread.join()
+        self.odrv2_thread.join()
+        self.odrv3_thread.join()       
 
     def Run(self,t,action):
         theta_gamma=self.TransformActionToMotorCommand(t,action)

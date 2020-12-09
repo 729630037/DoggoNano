@@ -1,7 +1,6 @@
 # SPDX-FileCopyrightText: 2020 Bryan Siepert, written for Adafruit Industries
 #
 # SPDX-License-Identifier: Unlicense
-from sys import maxsize
 import time
 import board
 import busio
