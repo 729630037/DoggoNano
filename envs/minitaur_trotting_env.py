@@ -44,7 +44,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
               motor_kp=1.0,
               motor_kd=0.015,
               remove_default_joint_damping=True,
-              render=True,
+              render=False,
               num_steps_to_log=1000,
               accurate_motor_model_enabled=True,
               use_signal_in_observation=False,
@@ -266,9 +266,9 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
     # x,y=self._kinematics.solve_K([action[0],action[4]])
     # self._fd.write(str(x)+" "+str(y)+'\n') 
     for i in range(0,4):
-      np.clip(action[i],-0.45,0.45)
+      action[i]=np.clip(action[i],-0.45,0.45)
     for i in range(4,8):
-      np.clip(action[i],0.85,2.35)    
+      action[i]=np.clip(action[i],0.85,2.35)    
     return action,self._convert_from_leg_model(action)
 
   def is_fallen(self):

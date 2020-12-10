@@ -73,8 +73,8 @@ print('Action Spec:')
 print(env.action_spec())
 
 # 我们创建两种环境：一种用于在训练期间收集数据，另一种用于评估
-collect_env = suite_pybullet.load(env_name,max_episode_steps=2000)
-eval_env = suite_pybullet.load(env_name,max_episode_steps=2000)
+collect_env = suite_pybullet.load(env_name,max_episode_steps=2500)
+eval_env = suite_pybullet.load(env_name,max_episode_steps=2500)
 
 
 # 启用GPU

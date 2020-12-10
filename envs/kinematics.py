@@ -88,7 +88,8 @@ class Kinematics:
         L = np.sqrt(coord[0] ** 2 + coord[2] ** 2)
         cos_param = (self.l1**2 + L**2 - self.l2**2) / (2.0*self.l1*L)
         theta = np.arctan2(leg_direction * coord[0], -coord[2])
-        if(cos_param>=1 or cos_param<=-1):
+        cos_param=np.clip(cos_param,-1,1)
+        if(cos_param>1 or cos_param<-1):
             raise ValueError("cos_param is out of bounds.")
         gamma = np.arccos(cos_param)
         angles = np.array([theta, gamma])
