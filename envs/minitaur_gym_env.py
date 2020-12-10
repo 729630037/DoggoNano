@@ -108,8 +108,7 @@ class MinitaurGymEnv(gym.Env):
                 signal_type="ol",
                 terrain_type="plane",
                 terrain_id=None,
-                mark='base',
-                use_imu=False           
+                mark='base'
                 ):
     """Initialize the minitaur gym environment.
 
@@ -237,7 +236,6 @@ class MinitaurGymEnv(gym.Env):
     self._urdf_version = urdf_version
     self._ground_id = None
     self._reflection = reflection
-    self._use_imu=use_imu
     self._env_randomizers = convert_to_list(env_randomizer) if env_randomizer else []
     if self._is_render:
       self._pybullet_client = bc.BulletClient(connection_mode=pybullet.GUI)
@@ -396,10 +394,6 @@ class MinitaurGymEnv(gym.Env):
       ValueError: The action dimension is not the same as the number of motors.
       ValueError: The magnitude of actions is out of bounds.
     """
-    _,action = self._transform_action_to_motor_command(action)
-    self.action=_
-    if self._use_imu:
-      return np.array(self._get_imu_observation()), 0, False, _
     self._last_base_position = self.minitaur.GetBasePosition()
     # Sleep, otherwise the computation takes less time than real time,
     # which will make the visualization like a fast-forward video.
@@ -418,6 +412,7 @@ class MinitaurGymEnv(gym.Env):
       env_randomizer=env_randomizer()
       env_randomizer.randomize_step(self)
 
+    _,action = self._transform_action_to_motor_command(action)
     self.minitaur.Step(action)
     reward = self._reward()
     done = self._termination()
@@ -544,12 +539,6 @@ class MinitaurGymEnv(gym.Env):
       the order that objectives are stored.
     """
     return self._objective_weights
-
-  def _get_imu_observation(self):
-    observation=self._imu.DataHandle()
-    # print("Roll:%f, Pitch:%f, RollVel:%f, PitchVel:%f, XVel:%f."%(observation[0],observation[1],observation[2],observation[3],self._imu.x_vel))
-
-    return observation
 
   def _get_observation(self):
     """Get observation of this environment, including noise and latency.
