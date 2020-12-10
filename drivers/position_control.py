@@ -19,14 +19,13 @@ xdata,tdata,ydata,thetadata,gammadata=[],[],[],[],[]
 TrotGaitParams={'stance_height':0.17,'down_amp':0.04,'up_amp':0.06,'flight_percent':0.35,'step_length':0.15,'freq':2.0}
 WalkGaitParams={'stance_height':0.15,'down_amp':0.04,'up_amp':0.04,'flight_percent':0.25,'step_length':0.1,'freq':2.0}
 HopGaitParams={'stance_height':0.15,'down_amp':0.05,'up_amp':0.05,'flight_percent':0.2,'step_length':0.0,'freq':1.0}
-USE_REINFORCEMENT_LEARNING=True
 
 
 flag=True
 
 class PositionControl:
     def __init__(self,
-                signal_type="kl",
+                signal_type="ol",
                 stay_still=False,
                 step_frequency=2.0,
                 init_theta=0.0,
@@ -138,6 +137,8 @@ class PositionControl:
        
     def TransformActionToMotorCommand(self, t, action):
         action += np.array(self.Signal(t,action))
+        action=[action[0],action[1],-action[3],-action[2],action[4],action[5],action[7],action[6]]
+        self.IsValidLegLength(action)
         return action
 
     def SetParams(self,GaitParams=TrotGaitParams):
@@ -175,8 +176,6 @@ class PositionControl:
         return theta,gamma
 
     def Gait(self,t,leg0_offset=0,leg1_offset=0.5,leg2_offset=0,leg3_offset=0.5):
-        if (not self.IsValidGaitParams()) or (not self.IsValidLegGain()):
-            return      
         leg_direction=-1
         theta0,gamma0=self.CoupledMoveLeg(t,leg0_offset,leg_direction) 
         theta1,gamma1=self.CoupledMoveLeg(t,leg1_offset,leg_direction)
@@ -186,46 +185,16 @@ class PositionControl:
         thetagamma=[theta0,theta1,-theta3,-theta2,gamma0,gamma1,gamma3,gamma2]
         return thetagamma
 
-    def IsValidGaitParams(self):
-        maxL=0.25
+    def IsValidLegLength(self,action):
+        maxL=0.24
         minL=0.08
-        if (self.stanceHeight+self.downAMP)>maxL or sqrt(pow(self.stanceHeight,2))+pow(self.stepLength/2,2)>maxL:
-            print("Gait overextends leg")
-            return False
-
-        if self.stanceHeight-self.upAMP<minL:
-            print("Gait underextends leg")
-            return False
-
-        if self.flightPercent <= 0 or self.flightPercent > 1.0:
-            print("Flight percent is invalid");
-            return False
-
-        if self.step_frequency < 0:
-            print("Frequency cannot be negative")
-            return False
-
-        if self.step_frequency > 10.0:
-            print("Frequency is too high (>10)")
-            return False
-
-        return True
-
-    def IsValidLegGain(self):
-        bad=self.LegGain[0]<0 or self.LegGain[1]<0 or self.LegGain[2]<0 or self.LegGain[3]<0
-        if bad:
-            print("Invalid gains: <0.")
-            return False
-        bad=bad or self.LegGain[0]>320 or self.LegGain[1]>10 or self.LegGain[2]>320 or self.LegGain[3]>10
-        if bad:
-            print("Invalid gains: too high.")
-            return False
-        bad=bad or (self.LegGain[0]>200 and self.LegGain[1]<0.1)
-        bad=bad or (self.LegGain[2]>200 and self.LegGain[3]<0.1)       
-        if bad:
-            print("Invalid gains: underdamped.")
-            return False    
-        return True
+        for i in range(4):            
+            x,y=self._kinematics.solve_K([action[i],action[i+4]])
+            L = pow((pow(x,2.0) + pow(y,2.0)), 0.5)
+            # print(L)
+            if L>maxL or L<minL:
+                print("The length of leg is out of bound!!!")
+                exit(0)        
 
     def ODrive0Init(self):        
         self.odrv0=Drive('206539A54D4D')  #1   207339A54D4D
@@ -256,8 +225,8 @@ class PositionControl:
             theta_gamma=self.odrive_queue.get()
             self.odrv0.SetCouplePosition(theta_gamma[0],theta_gamma[4])       
             self.odrv1.SetCouplePosition(theta_gamma[1],theta_gamma[5])        
-            self.odrv2.SetCouplePosition(-theta_gamma[3],theta_gamma[7])        
-            self.odrv3.SetCouplePosition(-theta_gamma[2],theta_gamma[6])        
+            self.odrv2.SetCouplePosition(theta_gamma[2],theta_gamma[6])        
+            self.odrv3.SetCouplePosition(theta_gamma[3],theta_gamma[7])        
             # self.odrive_queue.task_done()
 
     def is_valid_thetagamma(self,theta_gamma):
@@ -289,8 +258,8 @@ class PositionControl:
             exit(0)        
         self.odrv0.SetCouplePosition(theta_gamma[0],theta_gamma[4])       
         self.odrv1.SetCouplePosition(theta_gamma[1],theta_gamma[5])        
-        self.odrv2.SetCouplePosition(-theta_gamma[3],theta_gamma[7])        
-        self.odrv3.SetCouplePosition(-theta_gamma[2],theta_gamma[6])
+        self.odrv2.SetCouplePosition(theta_gamma[2],theta_gamma[6])        
+        self.odrv3.SetCouplePosition(theta_gamma[3],theta_gamma[7])
 
     def GetThetaGamma(self):
         return self.odrv0.GetThetaGamma()
