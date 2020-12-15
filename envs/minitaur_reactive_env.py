@@ -156,7 +156,11 @@ class MinitaurReactiveEnv(minitaur_gym_env.MinitaurGymEnv):
 
   def _transform_action_to_motor_command(self, action):
     # Add the reference trajectory (i.e. the trotting signal).
-    action += self._init_pose 
+    action += self._init_pose
+    for i in range(0,4):
+      action[i]=np.clip(action[i],-0.45,0.45)
+    for i in range(4,8):
+      action[i]=np.clip(action[i],0.85,2.35)       
     return action,self._convert_from_leg_model(action)
 
   def is_fallen(self):
