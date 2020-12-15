@@ -38,7 +38,7 @@ env_name = "MinitaurTrottingEnv-v1" # @param {type:"string"}
 
 # Use "num_iterations = 1e6" for better results (2 hrs)
 # 1e5 is just so this doesn't take too long (1 hr)
-num_iterations = 1000000 # @param {type:"integer"}
+num_iterations = 1e7 # @param {type:"integer"}
 
 initial_collect_steps = 10000 # @param {type:"integer"}
 collect_steps_per_iteration = 1 # @param {type:"integer"}
@@ -73,8 +73,8 @@ print('Action Spec:')
 print(env.action_spec())
 
 # 我们创建两种环境：一种用于在训练期间收集数据，另一种用于评估
-collect_env = suite_pybullet.load(env_name,max_episode_steps=2500)
-eval_env = suite_pybullet.load(env_name,max_episode_steps=2500)
+collect_env = suite_pybullet.load(env_name,max_episode_steps=3000)
+eval_env = suite_pybullet.load(env_name,max_episode_steps=3000)
 
 
 # 启用GPU

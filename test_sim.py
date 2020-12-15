@@ -4,7 +4,7 @@ import tensorflow as tf
 from tf_agents.trajectories import time_step as ts
 from tf_agents.environments import suite_pybullet
 
-USE_REINFORCEMENT_LEARNING=True
+USE_REINFORCEMENT_LEARNING=False
 
 def convert_to_tensor(time_step):
     step_type=time_step[0]
@@ -26,14 +26,12 @@ env_name = "MinitaurTrottingEnv-v1"
 eval_env = suite_pybullet.load(env_name,max_episode_steps=3000)
 time_step= eval_env.reset()
 
+saved_policy=None
 if USE_REINFORCEMENT_LEARNING:
     saved_policy = tf.saved_model.load("policies/policy")
-    time_step=convert_to_tensor(time_step)
 reward=0
 
 # print(saved_policy.action(time_step))
-
-# action = [0,0,0,0,0,0,0,0]
 while not time_step.is_last():
     if USE_REINFORCEMENT_LEARNING: 
         time_step=convert_to_tensor(time_step)

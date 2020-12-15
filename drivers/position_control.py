@@ -136,6 +136,8 @@ class PositionControl:
         return gamma, theta
        
     def TransformActionToMotorCommand(self, t, action):
+        if self.stay_still:
+            return self._init_pose
         action += np.array(self.Signal(t,action))
         action=[action[0],action[1],-action[3],-action[2],action[4],action[5],action[7],action[6]]
         self.IsValidLegLength(action)

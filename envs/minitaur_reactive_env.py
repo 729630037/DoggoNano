@@ -17,6 +17,9 @@ import math
 from gym import spaces
 import numpy as np
 from envs import minitaur_gym_env
+from envs.env_randomizers.minitaur_env_randomizer_from_config import MinitaurEnvRandomizerFromConfig
+from envs.env_randomizers.minitaur_push_randomizer import MinitaurPushRandomizer
+from drivers.position_control import PositionControl
 
 INIT_EXTENSION_POS = 2.0
 INIT_SWING_POS = 0.0
@@ -41,24 +44,30 @@ class MinitaurReactiveEnv(minitaur_gym_env.MinitaurGymEnv):
   """
   metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 166}
 
-  def __init__(self,
-               urdf_version=None,
-               energy_weight=0.005,
-               control_time_step=0.001,
-               action_repeat=1,
-               control_latency=0.03,
-               pd_latency=0.003,
-               on_rack=False,
-               motor_kp=1.0,
-               motor_kd=0.015,
-               remove_default_joint_damping=True,
-               render=False,
-               num_steps_to_log=1000,
-               accurate_motor_model_enabled=True,
-               use_angle_in_observation=True,
-               hard_reset=False,
-               env_randomizer=None,
-               log_path=None):
+  def __init__( self,
+                urdf_version=None,
+                energy_weight=0.005,
+                control_time_step=0.001,
+                action_repeat=1,
+                control_latency=0.03,
+                pd_latency=0.003,
+                on_rack=False,
+                motor_kp=1.0,
+                motor_kd=0.015,
+                remove_default_joint_damping=True,
+                render=False,
+                num_steps_to_log=1000,
+                accurate_motor_model_enabled=True,
+                use_angle_in_observation=False,
+                env_randomizer=[MinitaurEnvRandomizerFromConfig,MinitaurPushRandomizer],
+                random_init_pose=False,
+                init_theta=0.0,
+                init_gamma=1.1,
+                hard_reset=False,
+                log_path=None,
+                terrain_type="random",
+                terrain_id=None
+              ):
     """Initialize the minitaur trotting gym environment.
 
     Args:
@@ -96,6 +105,10 @@ class MinitaurReactiveEnv(minitaur_gym_env.MinitaurGymEnv):
         minitaur_logging.proto.
     """
     self._use_angle_in_observation = use_angle_in_observation
+    self._init_pose = [
+        init_theta, init_theta, init_theta, init_theta, init_gamma, init_gamma,
+        init_gamma, init_gamma
+    ]    
     super(MinitaurReactiveEnv,
           self).__init__(urdf_version=urdf_version,
                          energy_weight=energy_weight,
@@ -127,16 +140,9 @@ class MinitaurReactiveEnv(minitaur_gym_env.MinitaurGymEnv):
   def reset(self):
     # TODO(b/73666007): Use composition instead of inheritance.
     # (http://go/design-for-testability-no-inheritance).
-    init_pose = MinitaurPose(swing_angle_1=INIT_SWING_POS,
-                             swing_angle_2=INIT_SWING_POS,
-                             swing_angle_3=INIT_SWING_POS,
-                             swing_angle_4=INIT_SWING_POS,
-                             extension_angle_1=INIT_EXTENSION_POS,
-                             extension_angle_2=INIT_EXTENSION_POS,
-                             extension_angle_3=INIT_EXTENSION_POS,
-                             extension_angle_4=INIT_EXTENSION_POS)
+
     # TODO(b/73734502): Refactor input of _convert_from_leg_model to namedtuple.
-    initial_motor_angles = self._convert_from_leg_model(list(init_pose))
+    initial_motor_angles = self._convert_from_leg_model(self._init_pose)
     super(MinitaurReactiveEnv, self).reset(initial_motor_angles=initial_motor_angles,
                                            reset_duration=0.5)
     return self._get_observation()
@@ -144,20 +150,13 @@ class MinitaurReactiveEnv(minitaur_gym_env.MinitaurGymEnv):
   def _convert_from_leg_model(self, leg_pose):
     motor_pose = np.zeros(NUM_MOTORS)
     for i in range(NUM_LEGS):
-      motor_pose[int(2 * i)] = leg_pose[NUM_LEGS + i] - (-1)**int(i / 2) * leg_pose[i]
-      motor_pose[int(2 * i + 1)] = (leg_pose[NUM_LEGS + i] + (-1)**int(i / 2) * leg_pose[i])
+      motor_pose[int(2 * i)] = math.pi-leg_pose[NUM_LEGS + i] - (-1)**int(i / 2) * leg_pose[i]
+      motor_pose[int(2 * i + 1)] = math.pi-leg_pose[NUM_LEGS + i] + (-1)**int(i / 2) * leg_pose[i]
     return motor_pose
 
-  def _signal(self, t):
-    initial_pose = np.array([
-        INIT_SWING_POS, INIT_SWING_POS, INIT_SWING_POS, INIT_SWING_POS, INIT_EXTENSION_POS,
-        INIT_EXTENSION_POS, INIT_EXTENSION_POS, INIT_EXTENSION_POS
-    ])
-    return initial_pose
-
-  def _transform_action_to_motor_command(self, action,time):
+  def _transform_action_to_motor_command(self, action):
     # Add the reference trajectory (i.e. the trotting signal).
-    action += self._signal(time)   
+    action += self._init_pose 
     return action,self._convert_from_leg_model(action)
 
   def is_fallen(self):

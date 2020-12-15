@@ -24,7 +24,7 @@ ROBOT_INIT_POSITION = {
 
 
 class Terrain:
-
+    #rows为x轴，columns为y轴，terrain原点大致位于世界坐标系第三象限，坐标大致为[-rows/2，-columns/2]，当columns=rows时，蓝白块交点即为terrain坐标    
     def __init__(self, terrain_source, terrain_id, columns=256, rows=256):
         random.seed(10)
         self.terrain_source = terrain_source
@@ -40,12 +40,25 @@ class Terrain:
         terrain_data = [0] * self.columns * self.rows
         if self.terrain_source == 'random':
             for j in range(int(self.columns / 2)):
-                for i in range(int(self.rows / 2)):
+                for i in range(int(self.rows / 3.5),int(self.rows / 2)):
                     height = random.uniform(0, height_perturbation_range)
                     terrain_data[2 * i + 2 * j * self.rows] = height
                     terrain_data[2 * i + 1 + 2 * j * self.rows] = height
                     terrain_data[2 * i + (2 * j + 1) * self.rows] = height
                     terrain_data[2 * i + 1 + (2 * j + 1) * self.rows] = height
+
+
+
+
+            # for j in range(int(self.columns)):
+            #     height = 0.05
+            #     terrain_data[j] = height
+                    # terrain_data[2 * i + 1 + 2 * j * self.rows] = height
+                    # terrain_data[2 * i + (2 * j + 1) * self.rows] = height
+                    # terrain_data[2 * i + 1 + (2 * j + 1) * self.rows] = height
+            # print(terrain_data)
+            # terrain_data[1]=0.05
+
             terrain_shape = env.pybullet_client.createCollisionShape(
                 shapeType=env.pybullet_client.GEOM_HEIGHTFIELD,
                 meshScale=[.05, .05, 1],

@@ -259,7 +259,6 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
     action[0:NUM_LEGS] += self._theta_offset
     action[NUM_LEGS:2 * NUM_LEGS] += self._gamma_offset
     t= time.time()-self._reset_time 
-    # t=self.minitaur.GetTimeSinceReset()
     # Add the reference trajectory (i.e. the trotting signal).
     #action += self._signal(self.minitaur.GetTimeSinceReset())
     action += np.array(self._position_control.Signal(t,action))   
