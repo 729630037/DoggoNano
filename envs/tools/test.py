@@ -1,6 +1,11 @@
+import os,sys
+
+sys.path.append(os.path.abspath(os.path.join(os.getcwd())))
 import matplotlib.pyplot as plt
 from matplotlib import animation
 import numpy as np
+import math
+from envs.kinematics import Kinematics
 roll_d=[]
 pitch_d=[]
 t1=[]
@@ -13,9 +18,8 @@ t1=[]
 # plt.plot(t1, roll_d) 
 # # plt.plot(t1, theta1)     
 # plt.show()
+k=Kinematics()
+print(k._solve_IK([0.075,15,0.17],-1))
 
-a=[[1,2,3]]
-a.pop()
-print(len(a))
 # print(a+np.random.normal(scale=0.05, size=len(a)))
 

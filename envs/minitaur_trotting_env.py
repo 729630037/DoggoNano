@@ -62,7 +62,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
               theta_amplitude=0.4,   #0.35rad=20.05度 0.3rad=17.19度
               init_gamma=1.1,
               gamma_amplitude=0.8,
-              terrain_type="random",
+              terrain_type="plane",
               terrain_id=None
               ):
     """Initialize the minitaur trotting gym environment."""
@@ -265,9 +265,9 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
     # x,y=self._kinematics.solve_K([action[0],action[4]])
     # self._fd.write(str(x)+" "+str(y)+'\n') 
     for i in range(0,4):
-      action[i]=np.clip(action[i],-0.45,0.45)
+      action[i]=np.clip(action[i],-0.6,0.6)
     for i in range(4,8):
-      action[i]=np.clip(action[i],0.85,2.35)    
+      action[i]=np.clip(action[i],0.45,2.45)    
     return action,self._convert_from_leg_model(action)
 
   def is_fallen(self):
