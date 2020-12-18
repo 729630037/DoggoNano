@@ -44,7 +44,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
               motor_kp=1.0,
               motor_kd=0.015,
               remove_default_joint_damping=True,
-              render=False,
+              render=True,
               num_steps_to_log=1000,
               accurate_motor_model_enabled=True,
               use_signal_in_observation=False,
@@ -63,7 +63,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
               init_gamma=1.1,
               gamma_amplitude=0.8,
               terrain_type="plane",
-              terrain_id=None
+              terrain_id='random'
               ):
     """Initialize the minitaur trotting gym environment."""
 

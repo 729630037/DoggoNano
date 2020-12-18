@@ -65,7 +65,7 @@ class MinitaurReactiveEnv(minitaur_gym_env.MinitaurGymEnv):
                 init_gamma=1.1,
                 hard_reset=False,
                 log_path=None,
-                terrain_type="random",
+                terrain_type="plane",
                 terrain_id=None
               ):
     """Initialize the minitaur trotting gym environment.

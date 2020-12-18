@@ -16,7 +16,7 @@ FLAG_TO_FILENAME = {
 
 ROBOT_INIT_POSITION = {
     'mounts': [0, 0, .85],
-    'plane': [0, 0, 0.21],
+    'plane': [0, 0, .185],
     'hills': [0, 0, 1.98],
     'maze': [0, 0, 0.21],
     'random': [0, 0, 0.21]
@@ -47,18 +47,6 @@ class Terrain:
                     terrain_data[2 * i + (2 * j + 1) * self.rows] = height
                     terrain_data[2 * i + 1 + (2 * j + 1) * self.rows] = height
 
-
-
-
-            # for j in range(int(self.columns)):
-            #     height = 0.05
-            #     terrain_data[j] = height
-                    # terrain_data[2 * i + 1 + 2 * j * self.rows] = height
-                    # terrain_data[2 * i + (2 * j + 1) * self.rows] = height
-                    # terrain_data[2 * i + 1 + (2 * j + 1) * self.rows] = height
-            # print(terrain_data)
-            # terrain_data[1]=0.05
-
             terrain_shape = env.pybullet_client.createCollisionShape(
                 shapeType=env.pybullet_client.GEOM_HEIGHTFIELD,
                 meshScale=[.05, .05, 1],
@@ -73,7 +61,7 @@ class Terrain:
             terrain_shape = env.pybullet_client.createCollisionShape(
                 shapeType=env.pybullet_client.GEOM_HEIGHTFIELD,
                 meshScale=[.5, .5, .5],
-                fileName="heightmaps/ground0.txt",
+                fileName="heightmaps/ground0.txt", #0,4,5
                 heightfieldTextureScaling=128)
             terrain = env.pybullet_client.createMultiBody(0, terrain_shape)
             textureId = env.pybullet_client.loadTexture(f"{plane.getDataPath()}/grass.png")
@@ -126,7 +114,10 @@ class Terrain:
 
 
 if __name__=='__main__':
-    tt=Terrain("random",None)
+    # tt=Terrain("png",'mounts')
+    tt=Terrain("csv",None)
+    # tt=Terrain("random",None)
+
     bbc=bc.BulletClient(connection_mode=p.GUI)
     bbc.setPhysicsEngineParameter(enableConeFriction=0)
     bbc.configureDebugVisualizer(bbc.COV_ENABLE_RENDERING, 0)

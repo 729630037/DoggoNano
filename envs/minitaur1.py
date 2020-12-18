@@ -292,21 +292,21 @@ class Minitaur(object):
     if reload_urdf:
       if self._self_collision_enabled:
         self.quadruped = self._pybullet_client.loadURDF(
-            "%s/quadruped/minitaur.urdf" %self._urdf_root ,
+            "%s/quadruped/FullDoggo7.urdf" %self._urdf_root ,
             init_position,
             useFixedBase=self._on_rack,
             flags=self._pybullet_client.URDF_USE_SELF_COLLISION)
       else:
-        self.quadruped = self._pybullet_client.loadURDF("%s/quadruped/minitaur.urdf" %self._urdf_root ,
+        self.quadruped = self._pybullet_client.loadURDF("%s/quadruped/FullDoggo7.urdf" %self._urdf_root ,
                                                         init_position,
                                                         useFixedBase=self._on_rack)
       self._BuildJointNameToIdDict()
       self._BuildUrdfIds()
-      if self._remove_default_joint_damping:
-        self._RemoveDefaultJointDamping()
-      self._BuildMotorIdList()
-      self._RecordMassInfoFromURDF()
-      self._RecordInertiaInfoFromURDF()
+      # if self._remove_default_joint_damping:
+      #   self._RemoveDefaultJointDamping()
+      # self._BuildMotorIdList()
+      # self._RecordMassInfoFromURDF()
+      # self._RecordInertiaInfoFromURDF()
       self.ResetPose(add_constraint=True)
     else:
       self._pybullet_client.resetBasePositionAndOrientation(self.quadruped, init_position,
@@ -359,8 +359,7 @@ class Minitaur(object):
     Args:
       add_constraint: Whether to add a constraint at the joints of two feet.
     """
-    for i in range(self.num_legs):
-      self._ResetPoseForLeg(i, add_constraint)
+    self._ResetPoseForLeg(1, add_constraint)
 
   def _ResetPoseForLeg(self, leg_id, add_constraint):
     """Reset the initial pose for the leg.
@@ -374,31 +373,26 @@ class Minitaur(object):
     half_pi = math.pi / 2.0
     knee_angle = -2.1834
 
-    leg_position = LEG_POSITION[leg_id]
     self._pybullet_client.resetJointState(self.quadruped,
-                                          self._joint_name_to_id["motor_" + leg_position +
-                                                                 "L_joint"],
+                                          self._joint_name_to_id["hip11"],
                                           self._motor_direction[2 * leg_id] * half_pi,
                                           targetVelocity=0)
     self._pybullet_client.resetJointState(self.quadruped,
-                                          self._joint_name_to_id["knee_" + leg_position +
-                                                                 "L_link"],
+                                          self._joint_name_to_id["knee11"],
                                           self._motor_direction[2 * leg_id] * knee_angle,
                                           targetVelocity=0)
     self._pybullet_client.resetJointState(self.quadruped,
-                                          self._joint_name_to_id["motor_" + leg_position +
-                                                                 "R_joint"],
+                                          self._joint_name_to_id["hip12"],
                                           self._motor_direction[2 * leg_id + 1] * half_pi,
                                           targetVelocity=0)
     self._pybullet_client.resetJointState(self.quadruped,
-                                          self._joint_name_to_id["knee_" + leg_position +
-                                                                 "R_link"],
+                                          self._joint_name_to_id["knee12"],
                                           self._motor_direction[2 * leg_id + 1] * knee_angle,
                                           targetVelocity=0)
     if add_constraint:
       self._pybullet_client.createConstraint(
-          self.quadruped, self._joint_name_to_id["knee_" + leg_position + "R_link"],
-          self.quadruped, self._joint_name_to_id["knee_" + leg_position + "L_link"],
+          self.quadruped, self._joint_name_to_id["knee11"],
+          self.quadruped, self._joint_name_to_id["knee12"],
           self._pybullet_client.JOINT_POINT2POINT, [0, 0, 0], KNEE_CONSTRAINT_POINT_RIGHT,
           KNEE_CONSTRAINT_POINT_LEFT)
 

@@ -3,8 +3,11 @@ import envs.tools.bullet_client
 import tensorflow as tf
 from tf_agents.trajectories import time_step as ts
 from tf_agents.environments import suite_pybullet
+physical_devices = tf.config.list_physical_devices('GPU') 
+tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
-USE_REINFORCEMENT_LEARNING=False
+
+USE_REINFORCEMENT_LEARNING=True
 
 def convert_to_tensor(time_step):
     step_type=time_step[0]

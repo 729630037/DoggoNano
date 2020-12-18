@@ -1,0 +1,736 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-1-g15f4949  Build Version: 1.6.7594.29634
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="FullDoggo2">
+  <link
+    name="base_link">
+    <inertial>
+      <origin
+        xyz="0.00181208857794723 -0.0159999264376205 -0.000777503195860548"
+        rpy="0 0 0" />
+      <mass
+        value="0.0496126113245419" />
+      <inertia
+        ixx="8.59648471889474E-05"
+        ixy="9.59668378906236E-15"
+        ixz="-3.00172480679334E-13"
+        iyy="0.000264086496584398"
+        iyz="-2.57037156358212E-15"
+        izz="0.000178154724468994" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="C:\Users\sq\Documents\FullDoggo2\meshes\base_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="C:\Users\sq\Documents\FullDoggo2\meshes\base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="plane1">
+    <inertial>
+      <origin
+        xyz="0.02525 0.0075 0.0415"
+        rpy="0 0 0" />
+      <mass
+        value="0.0628725" />
+      <inertia
+        ixx="3.727291375E-05"
+        ixy="-6.73073573312353E-22"
+        ixz="-2.11127666193611E-21"
+        iyy="4.945577046875E-05"
+        iyz="-1.65185662401049E-22"
+        izz="1.454057546875E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="C:\Users\sq\Documents\FullDoggo2\meshes\plane1.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.698039215686274 0.698039215686274 0.698039215686274 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="C:\Users\sq\Documents\FullDoggo2\meshes\plane1.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="plane1"
+    type="fixed">
+    <origin
+      xyz="-0.0415 -0.02525 -0.015"
+      rpy="1.5707963267949 0 1.5707963267949" />
+    <parent
+      link="base_link" />
+    <child
+      link="plane1" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="plane2">
+    <inertial>
+      <origin
+        xyz="-0.00158749999999996 0.0116013726262815 -0.174904702523626"
+        rpy="0 0 0" />
+      <mass
+        value="0.150633641177075" />
+      <inertia
+        ixx="0.00206621455645504"
+        ixy="-7.9959910220806E-19"
+        ixz="-1.64033224191716E-19"
+        iyy="0.00186809845589421"
+        iyz="8.18284558926628E-07"
+        izz="0.000198369180769013" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="C:\Users\sq\Documents\FullDoggo2\meshes\plane2.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.0980392156862745 0.0980392156862745 0.0980392156862745 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="C:\Users\sq\Documents\FullDoggo2\meshes\plane2.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="plane2"
+    type="fixed">
+    <origin
+      xyz="-0.174428038951922 0.098061130830259 -0.012109509353403"
+      rpy="1.5707963267949 0.052359877559827 -1.5707963267949" />
+    <parent
+      link="base_link" />
+    <child
+      link="plane2" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="plane3">
+    <inertial>
+      <origin
+        xyz="-0.00158749999999999 0.0116013726262811 -0.174904702523626"
+        rpy="0 0 0" />
+      <mass
+        value="0.150633641177075" />
+      <inertia
+        ixx="0.00206621455645504"
+        ixy="-5.89534931288993E-19"
+        ixz="4.68515098950035E-21"
+        iyy="0.00186809845589421"
+        iyz="8.18284558923149E-07"
+        izz="0.000198369180769014" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="C:\Users\sq\Documents\FullDoggo2\meshes\plane3.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.0980392156862745 0.0980392156862745 0.0980392156862745 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="C:\Users\sq\Documents\FullDoggo2\meshes\plane3.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="plane3"
+    type="fixed">
+    <origin
+      xyz="0.175571961048078 -0.096296056342188 -0.012099042162154"
+      rpy="1.5707963267949 0.0523598775598271 1.5707963267949" />
+    <parent
+      link="base_link" />
+    <child
+      link="plane3" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="plane4">
+    <inertial>
+      <origin
+        xyz="-3.07098999782394E-07 0.0502131582132736 0.0805513631346069"
+        rpy="0 0 0" />
+      <mass
+        value="0.0514664818701333" />
+      <inertia
+        ixx="0.000177639199597601"
+        ixy="-7.85255748849214E-10"
+        ixz="-1.57740351043434E-09"
+        iyy="0.000245822755301994"
+        iyz="-2.7283158321091E-05"
+        izz="0.0003027283797594" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="C:\Users\sq\Documents\FullDoggo2\meshes\plane4.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.96078431372549 0.96078431372549 0.964705882352941 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="C:\Users\sq\Documents\FullDoggo2\meshes\plane4.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="plane4"
+    type="fixed">
+    <origin
+      xyz="0.090571961048078 0.000782674290559996 -0.064018717738505"
+      rpy="1.5707963267949 0 1.5707963267949" />
+    <parent
+      link="base_link" />
+    <child
+      link="plane4" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="plane5">
+    <inertial>
+      <origin
+        xyz="-3.07098999612499E-07 -0.0502131582132741 -0.0805513631346076"
+        rpy="0 0 0" />
+      <mass
+        value="0.0514664818701339" />
+      <inertia
+        ixx="0.000177639199597602"
+        ixy="7.85255749311813E-10"
+        ixz="1.57740351205291E-09"
+        iyy="0.000245822755301998"
+        iyz="-2.72831583210907E-05"
+        izz="0.000302728379759405" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="C:\Users\sq\Documents\FullDoggo2\meshes\plane5.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.96078431372549 0.96078431372549 0.964705882352941 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="C:\Users\sq\Documents\FullDoggo2\meshes\plane5.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="plane5"
+    type="fixed">
+    <origin
+      xyz="-0.089428038951922 0.000982400197510996 -0.064029184929754"
+      rpy="-1.5707963267949 0 -1.5707963267949" />
+    <parent
+      link="base_link" />
+    <child
+      link="plane5" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="pip2">
+    <inertial>
+      <origin
+        xyz="-0.00600000000000002 -2.77555756156289E-17 0"
+        rpy="0 0 0" />
+      <mass
+        value="0.00106349194509322" />
+      <inertia
+        ixx="1.25646255853038E-07"
+        ixy="1.15805285757424E-23"
+        ixz="2.48154183765908E-23"
+        iyy="7.55850312676377E-08"
+        iyz="8.41268532360571E-23"
+        izz="7.55850312676377E-08" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="C:\Users\sq\Documents\FullDoggo2\meshes\pip2.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.964705882352941 0.964705882352941 0.952941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="C:\Users\sq\Documents\FullDoggo2\meshes\pip2.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="pip2"
+    type="fixed">
+    <origin
+      xyz="0.175571961048078 0.098061130830259 -0.012109509353402"
+      rpy="2.35619449019235 0.0523598775598307 -1.5707963267949" />
+    <parent
+      link="base_link" />
+    <child
+      link="pip2" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="pip3">
+    <inertial>
+      <origin
+        xyz="-0.00599999999999998 -2.77555756156289E-17 1.38777878078145E-17"
+        rpy="0 0 0" />
+      <mass
+        value="0.00106349194509322" />
+      <inertia
+        ixx="1.25646255853038E-07"
+        ixy="-6.80356053824865E-23"
+        ixz="6.72084247699335E-23"
+        iyy="7.55850312676375E-08"
+        iyz="6.20191588958704E-23"
+        izz="7.55850312676376E-08" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="C:\Users\sq\Documents\FullDoggo2\meshes\pip3.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.964705882352941 0.964705882352941 0.952941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="C:\Users\sq\Documents\FullDoggo2\meshes\pip3.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="pip3"
+    type="fixed">
+    <origin
+      xyz="-0.174428038951922 -0.096296056342188 -0.012099042162154"
+      rpy="2.35619449019234 0.0523598775598286 1.5707963267949" />
+    <parent
+      link="base_link" />
+    <child
+      link="pip3" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="pip4">
+    <inertial>
+      <origin
+        xyz="-0.00600000000000002 1.38777878078145E-17 0"
+        rpy="0 0 0" />
+      <mass
+        value="0.00106349194509322" />
+      <inertia
+        ixx="1.25646255853038E-07"
+        ixy="-6.90695811481778E-23"
+        ixz="1.35657620458697E-22"
+        iyy="7.55850312676375E-08"
+        iyz="6.04164964590489E-23"
+        izz="7.55850312676376E-08" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="C:\Users\sq\Documents\FullDoggo2\meshes\pip4.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.964705882352941 0.964705882352941 0.952941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="C:\Users\sq\Documents\FullDoggo2\meshes\pip4.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="pip4"
+    type="fixed">
+    <origin
+      xyz="0.175571961048078 -0.096296056342188 -0.012099042162154"
+      rpy="2.35619449019234 0.0523598775598277 1.5707963267949" />
+    <parent
+      link="base_link" />
+    <child
+      link="pip4" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="pip1">
+    <inertial>
+      <origin
+        xyz="-0.00600000000000001 -1.38777878078145E-17 2.77555756156289E-17"
+        rpy="0 0 0" />
+      <mass
+        value="0.00106349194509322" />
+      <inertia
+        ixx="1.25646255853038E-07"
+        ixy="1.03397576569128E-23"
+        ixz="1.63368170979223E-23"
+        iyy="7.55850312676377E-08"
+        iyz="8.72934040184867E-23"
+        izz="7.55850312676377E-08" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="C:\Users\sq\Documents\FullDoggo2\meshes\pip1.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.964705882352941 0.964705882352941 0.952941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="C:\Users\sq\Documents\FullDoggo2\meshes\pip1.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="pip1"
+    type="fixed">
+    <origin
+      xyz="-0.174428038951922 0.101061130830259 -0.012109509353403"
+      rpy="2.35619449019235 0.0523598775598307 -1.5707963267949" />
+    <parent
+      link="base_link" />
+    <child
+      link="pip1" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="hip11">
+    <inertial>
+      <origin
+        xyz="-0.000402772359058896 0.0400549810777108 -5.8007012526673E-09"
+        rpy="0 0 0" />
+      <mass
+        value="0.0178815824937254" />
+      <inertia
+        ixx="2.22807689772417E-05"
+        ixy="-2.86680014802191E-07"
+        ixz="-5.48834911987822E-13"
+        iyy="8.28513707639775E-07"
+        iyz="-3.33013753669463E-12"
+        izz="2.28356050069003E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="C:\Users\sq\Documents\FullDoggo2\meshes\hip11.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="C:\Users\sq\Documents\FullDoggo2\meshes\hip11.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="hip11"
+    type="continuous">
+    <origin
+      xyz="-0.024292 0.00011102 -0.00011102"
+      rpy="1.5708 0.55555 1.5708" />
+    <parent
+      link="pip1" />
+    <child
+      link="hip11" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="knee11">
+    <inertial>
+      <origin
+        xyz="-2.91433543964104E-14 -0.0857929956840993 -2.49999999951678E-06"
+        rpy="0 0 0" />
+      <mass
+        value="0.0304320456503251" />
+      <inertia
+        ixx="0.000123727676354291"
+        ixy="6.92567218178776E-17"
+        ixz="3.50459881926467E-20"
+        iyy="1.02351723365124E-06"
+        iyz="6.58402680367708E-20"
+        izz="0.000124291032527666" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="C:\Users\sq\Documents\FullDoggo2\meshes\knee11.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="C:\Users\sq\Documents\FullDoggo2\meshes\knee11.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="knee11"
+    type="continuous">
+    <origin
+      xyz="0 0.09 0.010528"
+      rpy="0 0 -1.5708" />
+    <parent
+      link="hip11" />
+    <child
+      link="knee11" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="hip12">
+    <inertial>
+      <origin
+        xyz="-5.28568042692801E-05 0.0350552241378233 1.06270769961725E-10"
+        rpy="0 0 0" />
+      <mass
+        value="0.0250306596643849" />
+      <inertia
+        ixx="3.06094814111914E-05"
+        ixy="-4.63772147420992E-08"
+        ixz="1.71768387087799E-13"
+        iyy="1.89137149210224E-06"
+        iyz="1.82900583897269E-13"
+        izz="3.21193506951253E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="C:\Users\sq\Documents\FullDoggo2\meshes\hip12.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="C:\Users\sq\Documents\FullDoggo2\meshes\hip12.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="hip12"
+    type="continuous">
+    <origin
+      xyz="-0.013767 0.00011102 -0.00011102"
+      rpy="-1.4018 1.5708 1.6655" />
+    <parent
+      link="pip1" />
+    <child
+      link="hip12" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="knee12">
+    <inertial>
+      <origin
+        xyz="1.31838984174237E-16 -0.077881265376031 -1.2490009027033E-16"
+        rpy="0 0 0" />
+      <mass
+        value="0.0251043154563417" />
+      <inertia
+        ixx="8.49264078812272E-05"
+        ixy="-4.90403952319413E-19"
+        ixz="-1.52465930505774E-20"
+        iyy="1.15952270341932E-06"
+        iyz="1.03758227316202E-19"
+        izz="8.57063297996509E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="C:\Users\sq\Documents\FullDoggo2\meshes\knee12.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="C:\Users\sq\Documents\FullDoggo2\meshes\knee12.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="knee12"
+    type="continuous">
+    <origin
+      xyz="0 0.09 0.010525"
+      rpy="-3.1416 0 1.5708" />
+    <parent
+      link="hip12" />
+    <child
+      link="knee12" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+</robot>

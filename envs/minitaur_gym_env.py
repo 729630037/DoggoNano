@@ -5,6 +5,8 @@ import math
 import time
 import collections
 import os, inspect,sys
+
+from envs import terrain
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(os.path.dirname(currentdir))
 
@@ -20,7 +22,7 @@ import numpy as np
 import pybullet
 from envs.tools import bullet_client as bc
 import pybullet_data
-from envs import minitaur
+from envs import minitaur as minitaur
 from envs import motor
 from envs.terrain import Terrain
 from envs import model
@@ -309,7 +311,7 @@ class MinitaurGymEnv(gym.Env):
 
   def reset(self, initial_motor_angles=None, reset_duration=1.0):
     self.env_goal_reached = False
-    self._pybullet_client.configureDebugVisualizer(self._pybullet_client.COV_ENABLE_RENDERING, 0)
+    self._pybullet_client.configureDebugVisualizer(self._pybullet_client.COV_ENABLE_RENDERING, 1)
     if self._hard_reset:
       self._pybullet_client.resetSimulation()
       self._pybullet_client.setPhysicsEngineParameter(
@@ -341,6 +343,7 @@ class MinitaurGymEnv(gym.Env):
           torque_control_enabled=self._torque_control_enabled,
           motor_overheat_protection=motor_protect,
           on_rack=self._on_rack,
+          terrain_type=self._terrain_type,
           terrain_id=self._terrain_id)
           
     self.minitaur.Reset(reload_urdf=False,
