@@ -7,7 +7,7 @@ physical_devices = tf.config.list_physical_devices('GPU')
 tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 
-USE_REINFORCEMENT_LEARNING=True
+USE_REINFORCEMENT_LEARNING=False
 
 def convert_to_tensor(time_step):
     step_type=time_step[0]
