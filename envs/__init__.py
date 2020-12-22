@@ -6,7 +6,12 @@
 #from . import motor
 #from . import minitaur_gym_env
 import gym
-from gym.envs.registration import registry, make, spec
+from gym.envs.registration import registry
+import tensorflow as tf
+physical_devices = tf.config.list_physical_devices('GPU') 
+for gpu in physical_devices:
+    tf.config.experimental.set_memory_growth(gpu, True)
+
 
 def register(id, *args, **kvargs):
     if id in registry.env_specs:

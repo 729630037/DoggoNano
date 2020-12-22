@@ -400,32 +400,32 @@ class Minitaur(object):
       # Disable the default motor in pybullet.
       self._pybullet_client.setJointMotorControl2(
           bodyIndex=self.quadruped,
-          jointIndex=(self._joint_name_to_id["motor_" + leg_position + "L_joint"]),
+          jointIndex=(self._joint_name_to_id["hip11"]),
           controlMode=self._pybullet_client.VELOCITY_CONTROL,
           targetVelocity=0,
           force=knee_friction_force)
       self._pybullet_client.setJointMotorControl2(
           bodyIndex=self.quadruped,
-          jointIndex=(self._joint_name_to_id["motor_" + leg_position + "R_joint"]),
+          jointIndex=(self._joint_name_to_id["hip12"]),
           controlMode=self._pybullet_client.VELOCITY_CONTROL,
           targetVelocity=0,
           force=knee_friction_force)
 
     else:
-      self._SetDesiredMotorAngleByName("motor_" + leg_position + "L_joint",
+      self._SetDesiredMotorAngleByName("hip11",
                                        self._motor_direction[2 * leg_id] * half_pi)
-      self._SetDesiredMotorAngleByName("motor_" + leg_position + "R_joint",
+      self._SetDesiredMotorAngleByName("hip12",
                                        self._motor_direction[2 * leg_id + 1] * half_pi)
 
     self._pybullet_client.setJointMotorControl2(
         bodyIndex=self.quadruped,
-        jointIndex=(self._joint_name_to_id["knee_" + leg_position + "L_link"]),
+        jointIndex=(self._joint_name_to_id["knee11"]),
         controlMode=self._pybullet_client.VELOCITY_CONTROL,
         targetVelocity=0,
         force=knee_friction_force)
     self._pybullet_client.setJointMotorControl2(
         bodyIndex=self.quadruped,
-        jointIndex=(self._joint_name_to_id["knee_" + leg_position + "R_link"]),
+        jointIndex=(self._joint_name_to_id["knee12"]),
         controlMode=self._pybullet_client.VELOCITY_CONTROL,
         targetVelocity=0,
         force=knee_friction_force)

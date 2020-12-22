@@ -62,7 +62,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
               theta_amplitude=0.4,   #0.35rad=20.05度 0.3rad=17.19度
               init_gamma=1.1,
               gamma_amplitude=0.8,
-              terrain_type="random",
+              terrain_type="plane",
               terrain_id='random'
               ):
     """Initialize the minitaur trotting gym environment."""
