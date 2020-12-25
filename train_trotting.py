@@ -46,12 +46,12 @@ replay_buffer_capacity = 10000 # @param {type:"integer"}
 
 batch_size = 256 # @param {type:"integer"}
 
-critic_learning_rate = 3e-6 # @param {type:"number"}
-actor_learning_rate = 3e-6 # @param {type:"number"}
-alpha_learning_rate = 3e-6 # @param {type:"number"}
+critic_learning_rate = 3e-4 # @param {type:"number"}
+actor_learning_rate = 3e-4 # @param {type:"number"}
+alpha_learning_rate = 3e-4 # @param {type:"number"}
 target_update_tau = 0.005 # @param {type:"number"} Factor for soft update of the target networks
 target_update_period = 1 # @param {type:"number"}  Period for soft update of the target networks.
-gamma = 0.98 # @param {type:"number"}  A discount factor for future rewards.
+gamma = 0.99 # @param {type:"number"}  A discount factor for future rewards.
 reward_scale_factor = 1.0 # @param {type:"number"}  Multiplicative scale for the reward.
 
 actor_fc_layer_params = (256, 256)
@@ -65,16 +65,16 @@ eval_interval = 10000 # @param {type:"integer"}
 policy_save_interval = 5000 # @param {type:"integer"}
 
 # 加载Minituar环境
-env = suite_pybullet.load(env_name)
-env.reset()
-print('Observation Spec:')
-print(env.time_step_spec().observation)
-print('Action Spec:')
-print(env.action_spec())
+# env = suite_pybullet.load(env_name)
+# env.reset()
+# print('Observation Spec:')
+# print(env.time_step_spec().observation)
+# print('Action Spec:')
+# print(env.action_spec())
 
 # 我们创建两种环境：一种用于在训练期间收集数据，另一种用于评估
-collect_env = suite_pybullet.load(env_name,max_episode_steps=3000)
-eval_env = suite_pybullet.load(env_name,max_episode_steps=3000)
+collect_env = suite_pybullet.load(env_name,max_episode_steps=1000)
+eval_env = suite_pybullet.load(env_name,max_episode_steps=1000)
 
 
 # 启用GPU
