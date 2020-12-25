@@ -32,7 +32,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
 
   """
   metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 166}
-  load_ui = True
+  load_ui = False
   is_terminating = False
   def __init__(self,
               debug=False,
@@ -44,7 +44,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
               motor_kp=1.0,
               motor_kd=0.015,
               remove_default_joint_damping=True,
-              render=True,
+              render=False,
               num_steps_to_log=1000,
               accurate_motor_model_enabled=True,
               use_signal_in_observation=False,
