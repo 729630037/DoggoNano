@@ -65,16 +65,16 @@ eval_interval = 10000 # @param {type:"integer"}
 policy_save_interval = 5000 # @param {type:"integer"}
 
 # 加载Minituar环境
-# env = suite_pybullet.load(env_name)
-# env.reset()
-# print('Observation Spec:')
-# print(env.time_step_spec().observation)
-# print('Action Spec:')
-# print(env.action_spec())
+env = suite_pybullet.load(env_name)
+env.reset()
+print('Observation Spec:')
+print(env.time_step_spec().observation)
+print('Action Spec:')
+print(env.action_spec())
 
 # 我们创建两种环境：一种用于在训练期间收集数据，另一种用于评估
-collect_env = suite_pybullet.load(env_name,max_episode_steps=1000)
-eval_env = suite_pybullet.load(env_name,max_episode_steps=1000)
+collect_env = suite_pybullet.load(env_name,max_episode_steps=2500)
+eval_env = suite_pybullet.load(env_name,max_episode_steps=2500)
 
 
 # 启用GPU

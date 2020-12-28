@@ -22,9 +22,9 @@ from envs import terrain
 
 ROBOT_INIT_POSITION = {
     'mount': [0, 0, .85],
-    'plane': [0, 0, .185],
+    'plane': [0, 0, .165],
     'grass': [0, 0, 1.98],
-    'random': [0, 0, .185],
+    'random': [0, 0, .165],
     'rack':[0, 0, 1]
 }
 

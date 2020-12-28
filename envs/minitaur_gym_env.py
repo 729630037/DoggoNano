@@ -216,7 +216,7 @@ class MinitaurGymEnv(gym.Env):
     self._shake_weight = shake_weight
     self._distance_limit = distance_limit
     self._observation_noise_stdev = observation_noise_stdev
-    self._action_bound = 1
+    self._action_bound = 0.5
     self._pd_control_enabled = pd_control_enabled
     self._leg_model_enabled = leg_model_enabled
     self._accurate_motor_model_enabled = accurate_motor_model_enabled
@@ -291,7 +291,7 @@ class MinitaurGymEnv(gym.Env):
     observation_high = (self._get_observation_upper_bound() + OBSERVATION_EPS)
     observation_low = (self._get_observation_lower_bound() - OBSERVATION_EPS)
     action_dim = NUM_MOTORS
-    action_high = np.array([self._action_bound] * action_dim)
+    action_high = np.array([0.15,0.15,0.15,0.15,0.3,0.3,0.3,0.3])
     self.action_space = spaces.Box(-action_high, action_high)
     self.observation_space = spaces.Box(observation_low, observation_high)
     self.action=[0.0]*8
