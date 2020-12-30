@@ -77,7 +77,7 @@ class PositionControl:
         if self.signal_type == 'ik':
             return self.IK_signal(t, action)
         elif self.signal_type == 'ol':
-            return self.OpenLoopSignal(t)
+            return self.OpenLoopSignal(t,action)
         else:
             return self.Gait(t)
 
@@ -106,7 +106,7 @@ class PositionControl:
                     fl_angles[1],bl_angles[1],fr_angles[1],br_angles[1]])
         return signal
 
-    def OpenLoopSignal(self, t):
+    def OpenLoopSignal(self, t,action):
         # Generates the leg trajectories for the two digonal pair of legs.
         gamma_first, theta_first = self.GenSignal(t, 0)
         gamma_second, theta_second = self.GenSignal(t, 0.5)
@@ -116,14 +116,15 @@ class PositionControl:
             gamma_second, gamma_second, gamma_first
         ]) 
         signal = np.array(self._init_pose) + trotting_signal
+        signal +=action
         return signal
 
     def GenSignal(self, t, phase):
         the_amp = self.theta_amplitude
         gam_amp = self.gamma_amplitude
-        # start_coeff = self._evaluate_gait_stage_coeff(t, [0.0])
-        # the_amp *= start_coeff
-        # gam_amp *= start_coeff
+        start_coeff = self._evaluate_gait_stage_coeff(t, [0.0])
+        the_amp *= start_coeff
+        gam_amp *= start_coeff
 
         gp=(t*self.step_frequency+phase)%1
         if gp<= self.flightPercent:
@@ -138,7 +139,7 @@ class PositionControl:
     def TransformActionToMotorCommand(self, t, action):
         if self.stay_still:
             return self._init_pose
-        action += np.array(self.Signal(t,action))
+        action = np.array(self.Signal(t,action))
         action=[action[0],action[1],-action[3],-action[2],action[4],action[5],action[7],action[6]]
         self.IsValidLegLength(action)
         return action

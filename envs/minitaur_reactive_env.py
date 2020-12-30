@@ -11,9 +11,11 @@ if os.getcwd() not in sys.path:
   sys.path.append(os.path.abspath(os.path.join(os.getcwd())))
 
 
-
+from envs.gait_planner import GaitPlanner 
+from envs import kinematics
 import collections
 import math
+import time
 from gym import spaces
 import numpy as np
 from envs import minitaur_gym_env
@@ -45,28 +47,37 @@ class MinitaurReactiveEnv(minitaur_gym_env.MinitaurGymEnv):
   metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 166}
 
   def __init__( self,
-                urdf_version=None,
-                energy_weight=0.005,
-                control_time_step=0.001,
-                action_repeat=1,
-                control_latency=0.03,
-                pd_latency=0.003,
-                on_rack=False,
-                motor_kp=1.0,
-                motor_kd=0.015,
-                remove_default_joint_damping=True,
-                render=False,
-                num_steps_to_log=1000,
-                accurate_motor_model_enabled=True,
-                use_angle_in_observation=False,
-                env_randomizer=[MinitaurEnvRandomizerFromConfig,MinitaurPushRandomizer],
-                random_init_pose=False,
-                init_theta=0.0,
-                init_gamma=1.1,
-                hard_reset=False,
-                log_path=None,
-                terrain_type="plane",
-                terrain_id=None
+              debug=False,
+              urdf_version=None,
+              energy_weight=0.005,              
+              control_time_step=0.001,
+              action_repeat=1,
+              control_latency=0.03,
+              pd_latency=0.003,
+              on_rack=False,
+              motor_kp=1.0,
+              motor_kd=0.015,
+              remove_default_joint_damping=True,
+              render=False,
+              num_steps_to_log=1000,
+              accurate_motor_model_enabled=True,
+              use_signal_in_observation=False,
+              use_angle_in_observation=False,
+              hard_reset=False,
+              env_randomizer=[MinitaurEnvRandomizerFromConfig,MinitaurPushRandomizer],
+              log_path=None,
+              target_position=None,
+              backwards=None,
+              signal_type="ol",
+              random_init_pose=False,
+              stay_still=False,
+              step_frequency=2.0,
+              init_theta=0.0,
+              theta_amplitude=0.4,   #0.35rad=20.05度 0.3rad=17.19度
+              init_gamma=1.1,
+              gamma_amplitude=0.8,
+              terrain_type="plane",
+              terrain_id='random'
               ):
     """Initialize the minitaur trotting gym environment.
 
@@ -103,12 +114,7 @@ class MinitaurReactiveEnv(minitaur_gym_env.MinitaurGymEnv):
         perturbations when env.step() is called.
       log_path: The path to write out logs. For the details of logging, refer to
         minitaur_logging.proto.
-    """
-    self._use_angle_in_observation = use_angle_in_observation
-    self._init_pose = [
-        init_theta, init_theta, init_theta, init_theta, init_gamma, init_gamma,
-        init_gamma, init_gamma
-    ]    
+    """   
     super(MinitaurReactiveEnv,
           self).__init__(urdf_version=urdf_version,
                          energy_weight=energy_weight,
@@ -128,24 +134,98 @@ class MinitaurReactiveEnv(minitaur_gym_env.MinitaurGymEnv):
                          control_time_step=control_time_step,
                          action_repeat=action_repeat)
 
-    action_dim = 8
-    action_low = np.array([-0.5] * action_dim)
+    # (eventually) allow different feedback ranges/action spaces for different signals
+    action_max = {
+        'ik': 0.4,
+        'ol': 0.3
+    }
+    action_dim_map = {
+        'ik': 2,
+        'ol': 4,
+    }
+    action_dim = action_dim_map[self._signal_type]
+    action_low = np.array([action_max[self._signal_type]] * action_dim)
     action_high = -action_low
     self.action_space = spaces.Box(action_low, action_high)
+
+    self._flightPercent=0.5
+    self._step_frequency = step_frequency
+    self._theta_amplitude = theta_amplitude
+    self._gamma_amplitude = gamma_amplitude
+    self._use_signal_in_observation = use_signal_in_observation
+    self._use_angle_in_observation = use_angle_in_observation
+    self._signal_type = signal_type
+    self._use_angle_in_observation = use_angle_in_observation
+    self._init_pose = [
+        init_theta, init_theta, init_theta, init_theta, init_gamma, init_gamma,
+        init_gamma, init_gamma
+    ] 
+    self._signal_type = signal_type
+    self._gait_planner = GaitPlanner("gallop")
+    self._kinematics = kinematics.Kinematics()
     self._cam_dist = 1.0
     self._cam_yaw = 30
     self._cam_pitch = -30
 
-
   def reset(self):
-    # TODO(b/73666007): Use composition instead of inheritance.
-    # (http://go/design-for-testability-no-inheritance).
-
-    # TODO(b/73734502): Refactor input of _convert_from_leg_model to namedtuple.
     initial_motor_angles = self._convert_from_leg_model(self._init_pose)
     super(MinitaurReactiveEnv, self).reset(initial_motor_angles=initial_motor_angles,
                                            reset_duration=0.5)
     return self._get_observation()
+
+  @staticmethod
+  def _evaluate_stage_coefficient(current_t, end_t=0.0, width=0.001):
+      # sigmoid function
+      beta = p = width
+      if p - beta + end_t <= current_t <= p - (beta / 2) + end_t:
+          return (2 / beta ** 2) * (current_t - p + beta) ** 2
+      elif p - (beta/2) + end_t <= current_t <= p + end_t:
+          return 1 - (2 / beta ** 2) * (current_t - p) ** 2
+      else:
+          return 1
+
+  @staticmethod
+  def _evaluate_brakes_stage_coeff(current_t, action, end_t=0.0, end_value=0.0):
+      # ramp function
+      p = 1. + action[0]
+      if end_t <= current_t <= p + end_t:
+          return 1 - (current_t - end_t)
+      else:
+          return end_value
+
+  @staticmethod
+  def _evaluate_gait_stage_coeff(current_t, action, end_t=0.0):
+      # ramp function
+      p = 1. + action[1]
+      if end_t <= current_t <= p + end_t:
+          return current_t
+      else:
+          return 1.0
+
+  def _signal(self, t, action):
+      if self._signal_type == 'ik':
+          return self._IK_signal(t, action)
+      if self._signal_type == 'ol':
+          return self._open_loop_signal(t, action)
+
+  def _IK_signal(self, t, action):
+      gait_stage_coeff = self._evaluate_gait_stage_coeff(t, action)
+      position = np.array([0,0,0])
+      orientation = np.array([0,0,0])
+      step_length = self.step_length * gait_stage_coeff
+      step_rotation = (self.step_rotation if self.step_rotation is not None else 0.0)
+      step_angle = self.step_angle if self.step_angle is not None else 0.0
+      step_period = self.step_period
+
+      frames = self._gait_planner.loop(step_length, step_angle, step_rotation, step_period, 1.0)
+      fr_angles, fl_angles, br_angles, bl_angles, _ = self._kinematics.solve(orientation, position, frames)
+      signal = np.array([fl_angles[0],bl_angles[0],fr_angles[0],br_angles[0],
+                  fl_angles[1],bl_angles[1],fr_angles[1],br_angles[1]])
+      return signal
+
+  def _open_loop_signal(self, t, action):
+      signal = np.array(self._init_pose)+action
+      return signal
 
   def _convert_from_leg_model(self, leg_pose):
     motor_pose = np.zeros(NUM_MOTORS)
@@ -155,12 +235,22 @@ class MinitaurReactiveEnv(minitaur_gym_env.MinitaurGymEnv):
     return motor_pose
 
   def _transform_action_to_motor_command(self, action):
-    # Add the reference trajectory (i.e. the trotting signal).
-    action += self._init_pose
+    """
+    Generates the motor commands for the given action.
+    theta/gamma offsets and the reference leg trajectory will be added on
+    top of the inputs before the conversion.
+    """
+    if self._stay_still:
+        return self._init_pose,self._convert_from_leg_model(self._init_pose)    
+
+    t= time.time()-self._reset_time 
+    action = self._signal(t,action)  
+    # x,y=self._kinematics.solve_K([action[0],action[4]])
+    # self._fd.write(str(x)+" "+str(y)+'\n') 
     for i in range(0,4):
       action[i]=np.clip(action[i],-0.6,0.6)
     for i in range(4,8):
-      action[i]=np.clip(action[i],0.45,2.45)         
+      action[i]=np.clip(action[i],0.45,2.45)    
     return action,self._convert_from_leg_model(action)
 
   def is_fallen(self):

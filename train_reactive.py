@@ -38,20 +38,20 @@ env_name = "MinitaurReactiveEnv-v1" # @param {type:"string"}
 
 # Use "num_iterations = 1e6" for better results (2 hrs)
 # 1e5 is just so this doesn't take too long (1 hr)
-num_iterations = 10000000 # @param {type:"integer"}
+num_iterations = 1000000 # @param {type:"integer"}
 
 initial_collect_steps = 10000 # @param {type:"integer"}
 collect_steps_per_iteration = 1 # @param {type:"integer"}
 replay_buffer_capacity = 10000 # @param {type:"integer"}
 
-batch_size = 256 # @param {type:"integer"}
+batch_size = 256   # @param {type:"integer"}
 
-critic_learning_rate = 3e-4 # @param {type:"number"}
-actor_learning_rate = 3e-4 # @param {type:"number"}
-alpha_learning_rate = 3e-4 # @param {type:"number"}
+critic_learning_rate = 1e-6 # @param {type:"number"}
+actor_learning_rate = 1e-6 # @param {type:"number"}
+alpha_learning_rate = 1e-6 # @param {type:"number"}
 target_update_tau = 0.005 # @param {type:"number"} Factor for soft update of the target networks
 target_update_period = 1 # @param {type:"number"}  Period for soft update of the target networks.
-gamma = 0.99 # @param {type:"number"}  A discount factor for future rewards.
+gamma = 0.9 # @param {type:"number"}  A discount factor for future rewards.
 reward_scale_factor = 1.0 # @param {type:"number"}  Multiplicative scale for the reward.
 
 actor_fc_layer_params = (256, 256)
@@ -59,7 +59,7 @@ critic_joint_fc_layer_params = (256, 256)
 
 log_interval = 5000 # @param {type:"integer"}
 
-num_eval_episodes = 20 # @param {type:"integer"}
+num_eval_episodes = 2 # @param {type:"integer"}
 eval_interval = 10000 # @param {type:"integer"}
 
 policy_save_interval = 5000 # @param {type:"integer"}
@@ -73,8 +73,8 @@ print('Action Spec:')
 print(env.action_spec())
 
 # 我们创建两种环境：一种用于在训练期间收集数据，另一种用于评估
-collect_env = suite_pybullet.load(env_name,max_episode_steps=3000)
-eval_env = suite_pybullet.load(env_name,max_episode_steps=3000)
+collect_env = suite_pybullet.load(env_name,max_episode_steps=2500)
+eval_env = suite_pybullet.load(env_name,max_episode_steps=2500)
 
 
 # 启用GPU
@@ -88,44 +88,46 @@ observation_spec, action_spec, time_step_spec = (
 
 with strategy.scope():
   critic_net = critic_network.CriticNetwork(
-        (observation_spec, action_spec),
-        observation_fc_layer_params=None,
-        action_fc_layer_params=None,
-        joint_fc_layer_params=critic_joint_fc_layer_params,
-        kernel_initializer='glorot_uniform',
-        last_kernel_initializer='glorot_uniform')
+        (observation_spec, action_spec),   #  input_tensor_spec: A tuple of (observation, action) each a nest of `tensor_spec.TensorSpec` representing the inputs.
+        observation_fc_layer_params=None,  #  Optional list of fully connected parameters for observations, where each item is the number of units in the layer.
+        action_fc_layer_params=None,       #  Optional list of fully connected parameters for actions, where each item is the number of units in the layer.
+        joint_fc_layer_params=critic_joint_fc_layer_params,     # Optional list of fully connected parameters after merging observations and actions
+        kernel_initializer='glorot_uniform',    #  kernel initializer for all layers except for the value regression layer. If None, a VarianceScaling initializer will be used.
+        last_kernel_initializer='glorot_uniform')  # kernel initializer for the value regression layer. If None, a RandomUniform initializer will be used.
 
 # 我们将使用critic来训练一个actor网络，这将使我们能够在观察到的情况下产生动作。
 # ActorNetwork会预测经过tanh压缩的MultivariateNormalDiag分布的参数。每当我们需要采取行动时，便会根据当前观察结果对这种分布进行采样。
 with strategy.scope():
   actor_net = actor_distribution_network.ActorDistributionNetwork(
-      observation_spec,
-      action_spec,
-      fc_layer_params=actor_fc_layer_params,
+      observation_spec,        #     input_tensor_spec: A nest of `tensor_spec.TensorSpec` representing the input.
+      action_spec,             #     output_tensor_spec: A nest of `tensor_spec.BoundedTensorSpec` representing the output. 
+      fc_layer_params=actor_fc_layer_params,         #   Optional list of fully_connected parameters, where each item is the number of units in the layer.
       continuous_projection_net=(
-          tanh_normal_projection_network.TanhNormalProjectionNetwork))
+          tanh_normal_projection_network.TanhNormalProjectionNetwork))  # Callable that generates a continuous projectionnetwork
+                                                                        # to be called with some hidden state and the outer_rank of the state.
+
 
 # 有了这些网络，我们现在可以实例化agent。
 with strategy.scope():
   train_step = train_utils.create_train_step()
 
   tf_agent = sac_agent.SacAgent(
-        time_step_spec,
-        action_spec,
-        actor_network=actor_net,
-        critic_network=critic_net,
+        time_step_spec,           # A `TimeStep` spec of the expected time_steps.
+        action_spec,              # A nest of BoundedTensorSpec representing the actions.
+        actor_network=actor_net,  # A function actor_network(observation, action_spec) that returns action distribution.
+        critic_network=critic_net, # A function critic_network((observations, actions)) that returns the q_values for each observation and action.
         actor_optimizer=tf.compat.v1.train.AdamOptimizer(
-            learning_rate=actor_learning_rate),
+            learning_rate=actor_learning_rate),     # The optimizer to use for the actor network.
         critic_optimizer=tf.compat.v1.train.AdamOptimizer(
-            learning_rate=critic_learning_rate),
+            learning_rate=critic_learning_rate),    # The default optimizer to use for the critic network.
         alpha_optimizer=tf.compat.v1.train.AdamOptimizer(
-            learning_rate=alpha_learning_rate),
-        target_update_tau=target_update_tau,
-        target_update_period=target_update_period,
-        td_errors_loss_fn=tf.math.squared_difference,
-        gamma=gamma,
-        reward_scale_factor=reward_scale_factor,
-        train_step_counter=train_step)
+            learning_rate=alpha_learning_rate),   # The default optimizer to use for the alpha variable.
+        target_update_tau=target_update_tau,      # Factor for soft update of the target networks.
+        target_update_period=target_update_period,  #  Period for soft update of the target networks.
+        td_errors_loss_fn=tf.math.squared_difference,   # A function for computing the elementwise TD errors loss.
+        gamma=gamma,         #  A discount factor for future rewards.
+        reward_scale_factor=reward_scale_factor,   #  Multiplicative scale for the reward.
+        train_step_counter=train_step)      # An optional counter to increment every time the train op is run.  Defaults to the global_step.
 
   tf_agent.initialize()
 
@@ -188,21 +190,21 @@ rb_observer = reverb_utils.ReverbAddTrajectoryObserver(
 
 # 我们使用随机策略创建一个Actor，并收集经验以为经验回放缓冲区提供种子。
 initial_collect_actor = actor.Actor(
-  collect_env,
-  random_policy,
-  train_step,
-  steps_per_run=initial_collect_steps,
+  collect_env,    # An instance of either a tf or py environment. Note the policy, andobservers should match the tf/pyness of the env.
+  random_policy,  # An instance of a policy used to interact with the environment.
+  train_step,     # A scalar tf.int64 `tf.Variable` which will keep track of the number of train steps. This is used for artifacts created like summaries.
+  steps_per_run=initial_collect_steps, # Number of steps to evaluated per run call. See below.
   observers=[rb_observer])
 initial_collect_actor.run()  
 
 # 使用收集策略实例化actor，以训练期间收集更多经验。
-env_step_metric = py_metrics.EnvironmentSteps()
+env_step_metric = py_metrics.EnvironmentSteps()  # Counts the number of steps taken in the environment
 collect_actor = actor.Actor(
   collect_env,
   collect_policy,
   train_step,
   steps_per_run=1,
-  metrics=actor.collect_metrics(10),
+  metrics=actor.collect_metrics(10),    # A list of metric observers.
   summary_dir=os.path.join(tempdir, learner.TRAIN_DIR),
   observers=[rb_observer, env_step_metric])
 

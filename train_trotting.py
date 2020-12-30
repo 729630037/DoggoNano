@@ -33,7 +33,6 @@ from tf_agents.replay_buffers import reverb_replay_buffer
 from tf_agents.replay_buffers import reverb_utils
 from tf_agents.utils import common
 
-
 env_name = "MinitaurTrottingEnv-v1" # @param {type:"string"}
 
 # Use "num_iterations = 1e6" for better results (2 hrs)
@@ -44,14 +43,14 @@ initial_collect_steps = 10000 # @param {type:"integer"}
 collect_steps_per_iteration = 1 # @param {type:"integer"}
 replay_buffer_capacity = 10000 # @param {type:"integer"}
 
-batch_size = 256 # @param {type:"integer"}
+batch_size = 256   # @param {type:"integer"}
 
-critic_learning_rate = 3e-6 # @param {type:"number"}
-actor_learning_rate = 3e-6 # @param {type:"number"}
-alpha_learning_rate = 3e-6 # @param {type:"number"}
+critic_learning_rate = 1e-6 # @param {type:"number"}
+actor_learning_rate = 1e-6 # @param {type:"number"}
+alpha_learning_rate = 1e-6 # @param {type:"number"}
 target_update_tau = 0.005 # @param {type:"number"} Factor for soft update of the target networks
 target_update_period = 1 # @param {type:"number"}  Period for soft update of the target networks.
-gamma = 0.99 # @param {type:"number"}  A discount factor for future rewards.
+gamma = 0.9 # @param {type:"number"}  A discount factor for future rewards.
 reward_scale_factor = 1.0 # @param {type:"number"}  Multiplicative scale for the reward.
 
 actor_fc_layer_params = (256, 256)
@@ -59,7 +58,7 @@ critic_joint_fc_layer_params = (256, 256)
 
 log_interval = 5000 # @param {type:"integer"}
 
-num_eval_episodes = 10 # @param {type:"integer"}
+num_eval_episodes = 2 # @param {type:"integer"}
 eval_interval = 10000 # @param {type:"integer"}
 
 policy_save_interval = 5000 # @param {type:"integer"}
