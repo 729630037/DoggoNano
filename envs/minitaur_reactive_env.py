@@ -10,9 +10,6 @@ parentdir = os.path.dirname(os.path.dirname(currentdir))
 if os.getcwd() not in sys.path:
   sys.path.append(os.path.abspath(os.path.join(os.getcwd())))
 
-
-from envs.gait_planner import GaitPlanner 
-from envs import kinematics
 import collections
 import math
 import time
@@ -68,7 +65,7 @@ class MinitaurReactiveEnv(minitaur_gym_env.MinitaurGymEnv):
               log_path=None,
               target_position=None,
               backwards=None,
-              signal_type="ol",
+              signal_type="ik",
               random_init_pose=False,
               stay_still=False,
               step_frequency=2.0,
@@ -77,7 +74,7 @@ class MinitaurReactiveEnv(minitaur_gym_env.MinitaurGymEnv):
               init_gamma=1.1,
               gamma_amplitude=0.8,
               terrain_type="plane",
-              terrain_id='random'
+              terrain_id='plane'
               ):
     """Initialize the minitaur trotting gym environment.
 
@@ -115,38 +112,6 @@ class MinitaurReactiveEnv(minitaur_gym_env.MinitaurGymEnv):
       log_path: The path to write out logs. For the details of logging, refer to
         minitaur_logging.proto.
     """   
-    super(MinitaurReactiveEnv,
-          self).__init__(urdf_version=urdf_version,
-                         energy_weight=energy_weight,
-                         accurate_motor_model_enabled=accurate_motor_model_enabled,
-                         motor_overheat_protection=True,
-                         motor_kp=motor_kp,
-                         motor_kd=motor_kd,
-                         remove_default_joint_damping=remove_default_joint_damping,
-                         control_latency=control_latency,
-                         pd_latency=pd_latency,
-                         on_rack=on_rack,
-                         render=render,
-                         hard_reset=hard_reset,
-                         num_steps_to_log=num_steps_to_log,
-                         env_randomizer=env_randomizer,
-                         log_path=log_path,
-                         control_time_step=control_time_step,
-                         action_repeat=action_repeat)
-
-    # (eventually) allow different feedback ranges/action spaces for different signals
-    action_max = {
-        'ik': 0.4,
-        'ol': 0.3
-    }
-    action_dim_map = {
-        'ik': 2,
-        'ol': 4,
-    }
-    action_dim = action_dim_map[self._signal_type]
-    action_low = np.array([action_max[self._signal_type]] * action_dim)
-    action_high = -action_low
-    self.action_space = spaces.Box(action_low, action_high)
 
     self._flightPercent=0.5
     self._step_frequency = step_frequency
@@ -161,8 +126,52 @@ class MinitaurReactiveEnv(minitaur_gym_env.MinitaurGymEnv):
         init_gamma, init_gamma
     ] 
     self._signal_type = signal_type
-    self._gait_planner = GaitPlanner("gallop")
-    self._kinematics = kinematics.Kinematics()
+    self._stay_still = False
+
+    super(MinitaurReactiveEnv,
+          self).__init__(urdf_version=urdf_version,
+                         energy_weight=energy_weight,
+                        accurate_motor_model_enabled=accurate_motor_model_enabled,
+                        motor_overheat_protection=False,
+                        motor_kp=motor_kp,
+                        motor_kd=motor_kd,
+                        remove_default_joint_damping=remove_default_joint_damping,
+                        control_latency=control_latency,
+                        pd_latency=pd_latency,
+                        on_rack=on_rack,
+                        render=render,
+                        hard_reset=hard_reset,
+                        num_steps_to_log=num_steps_to_log,
+                        env_randomizer=env_randomizer,
+                        log_path=log_path,
+                        control_time_step=control_time_step,
+                        action_repeat=action_repeat,
+                        terrain_id=terrain_id,
+                        terrain_type=terrain_type,
+                        target_position=target_position,
+                        signal_type=signal_type,
+                        backwards=backwards,
+                        debug=debug
+           )
+
+    # (eventually) allow different feedback ranges/action spaces for different signals
+    action_max = {
+        'ik': [0.1]*8,
+        'ol': [0.5]*4+[0.8]*4
+    }
+    action_min = {
+        'ik': [-0.1]*8,
+        'ol': [-0.5]*4+[2.2]*4
+    }    
+
+    action_high = np.array(action_max[self._signal_type])
+    action_low = np.array(action_min[self._signal_type])    
+    self.action_space = spaces.Box(action_low, action_high)
+
+    self._position_control=PositionControl(mode="gallop",signal_type=self._signal_type)
+    self._stay_still = stay_still
+    self.is_terminating = False
+    self._fd=open("dd.txt","w")
     self._cam_dist = 1.0
     self._cam_yaw = 30
     self._cam_pitch = -30
@@ -172,60 +181,6 @@ class MinitaurReactiveEnv(minitaur_gym_env.MinitaurGymEnv):
     super(MinitaurReactiveEnv, self).reset(initial_motor_angles=initial_motor_angles,
                                            reset_duration=0.5)
     return self._get_observation()
-
-  @staticmethod
-  def _evaluate_stage_coefficient(current_t, end_t=0.0, width=0.001):
-      # sigmoid function
-      beta = p = width
-      if p - beta + end_t <= current_t <= p - (beta / 2) + end_t:
-          return (2 / beta ** 2) * (current_t - p + beta) ** 2
-      elif p - (beta/2) + end_t <= current_t <= p + end_t:
-          return 1 - (2 / beta ** 2) * (current_t - p) ** 2
-      else:
-          return 1
-
-  @staticmethod
-  def _evaluate_brakes_stage_coeff(current_t, action, end_t=0.0, end_value=0.0):
-      # ramp function
-      p = 1. + action[0]
-      if end_t <= current_t <= p + end_t:
-          return 1 - (current_t - end_t)
-      else:
-          return end_value
-
-  @staticmethod
-  def _evaluate_gait_stage_coeff(current_t, action, end_t=0.0):
-      # ramp function
-      p = 1. + action[1]
-      if end_t <= current_t <= p + end_t:
-          return current_t
-      else:
-          return 1.0
-
-  def _signal(self, t, action):
-      if self._signal_type == 'ik':
-          return self._IK_signal(t, action)
-      if self._signal_type == 'ol':
-          return self._open_loop_signal(t, action)
-
-  def _IK_signal(self, t, action):
-      gait_stage_coeff = self._evaluate_gait_stage_coeff(t, action)
-      position = np.array([0,0,0])
-      orientation = np.array([0,0,0])
-      step_length = self.step_length * gait_stage_coeff
-      step_rotation = (self.step_rotation if self.step_rotation is not None else 0.0)
-      step_angle = self.step_angle if self.step_angle is not None else 0.0
-      step_period = self.step_period
-
-      frames = self._gait_planner.loop(step_length, step_angle, step_rotation, step_period, 1.0)
-      fr_angles, fl_angles, br_angles, bl_angles, _ = self._kinematics.solve(orientation, position, frames)
-      signal = np.array([fl_angles[0],bl_angles[0],fr_angles[0],br_angles[0],
-                  fl_angles[1],bl_angles[1],fr_angles[1],br_angles[1]])
-      return signal
-
-  def _open_loop_signal(self, t, action):
-      signal = np.array(self._init_pose)+action
-      return signal
 
   def _convert_from_leg_model(self, leg_pose):
     motor_pose = np.zeros(NUM_MOTORS)
@@ -244,7 +199,7 @@ class MinitaurReactiveEnv(minitaur_gym_env.MinitaurGymEnv):
         return self._init_pose,self._convert_from_leg_model(self._init_pose)    
 
     t= time.time()-self._reset_time 
-    action = self._signal(t,action)  
+    action = self._position_control.Signal(t,action)  
     # x,y=self._kinematics.solve_K([action[0],action[4]])
     # self._fd.write(str(x)+" "+str(y)+'\n') 
     for i in range(0,4):

@@ -26,6 +26,7 @@ flag=True
 class PositionControl:
     def __init__(self,
                 signal_type="ol",
+                mode="trot",
                 stay_still=False,
                 step_frequency=2.0,
                 init_theta=0.0,
@@ -38,10 +39,11 @@ class PositionControl:
                 step_angle=None,
                 step_period=0.5,
                 ):
+        self.mode=mode
         self.theta_offset = np.zeros(4)
         self.gamma_offset = np.zeros(4)
-        self._gait_planner = GaitPlanner("trot")
-        self._kinematics = kinematics.Kinematics()
+        self.gait_planner = GaitPlanner(mode)
+        self.kinematics = kinematics.Kinematics()
         self.signal_type=signal_type    
         self.stay_still = stay_still
         self.use_imu=use_imu               
@@ -84,7 +86,7 @@ class PositionControl:
     @staticmethod
     def _evaluate_gait_stage_coeff(current_t, action, end_t=0.0):
         # ramp function(斜坡函数)
-        p = 0.8 + action[0]
+        p = 0.8
         if end_t <= current_t <= p + end_t:
             return current_t
         else:
@@ -100,22 +102,26 @@ class PositionControl:
         step_period = self.step_period
 
         direction = -1.0 if step_length < 0 else 1.0
-        frames = self._gait_planner.loop(t,step_length, step_angle, step_rotation, step_period, direction)
-        fr_angles, fl_angles, br_angles, bl_angles, _ = self._kinematics.solve(orientation, position, frames)
+        frames = self.gait_planner.loop(t,step_length, step_angle, step_rotation, step_period, direction)
+        fr_angles, fl_angles, br_angles, bl_angles, _ = self.kinematics.solve(orientation, position, frames)
         signal = np.array([fl_angles[0],bl_angles[0],fr_angles[0],br_angles[0],
                     fl_angles[1],bl_angles[1],fr_angles[1],br_angles[1]])
+        signal +=action     
         return signal
 
     def OpenLoopSignal(self, t,action):
-        # Generates the leg trajectories for the two digonal pair of legs.
-        gamma_first, theta_first = self.GenSignal(t, 0)
-        gamma_second, theta_second = self.GenSignal(t, 0.5)
+        if self.mode=="trot":
+            # Generates the leg trajectories for the two digonal pair of legs.
+            gamma_first, theta_first = self.GenSignal(t, 0)
+            gamma_second, theta_second = self.GenSignal(t, 0.5)
 
-        trotting_signal = np.array([
-            theta_first, theta_second, theta_second, theta_first, gamma_first,
-            gamma_second, gamma_second, gamma_first
-        ]) 
-        signal = np.array(self._init_pose) + trotting_signal
+            trotting_signal = np.array([
+                theta_first, theta_second, theta_second, theta_first, gamma_first,
+                gamma_second, gamma_second, gamma_first
+            ]) 
+            signal = np.array(self._init_pose) + trotting_signal
+        else:
+            signal=np.array([0]*8)
         signal +=action
         return signal
 
@@ -192,7 +198,7 @@ class PositionControl:
         maxL=0.24
         minL=0.08
         for i in range(4):            
-            x,y=self._kinematics.solve_K([action[i],action[i+4]])
+            x,y=self.kinematics.solve_K([action[i],action[i+4]])
             L = pow((pow(x,2.0) + pow(y,2.0)), 0.5)
             # print(L)
             if L>maxL or L<minL:

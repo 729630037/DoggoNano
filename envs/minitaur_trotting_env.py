@@ -44,7 +44,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
               motor_kp=1.0,
               motor_kd=0.015,
               remove_default_joint_damping=True,
-              render=True,
+              render=False,
               num_steps_to_log=1000,
               accurate_motor_model_enabled=True,
               use_signal_in_observation=False,
@@ -54,7 +54,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
               log_path=None,
               target_position=None,
               backwards=None,
-              signal_type="ol",
+              signal_type="ik",
               random_init_pose=False,
               stay_still=False,
               step_frequency=2.0,
@@ -63,7 +63,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
               init_gamma=1.1,
               gamma_amplitude=0.8,
               terrain_type="plane",
-              terrain_id='random'
+              terrain_id='plane'
               ):
 
     # The reset position.
@@ -114,25 +114,23 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
 
     # (eventually) allow different feedback ranges/action spaces for different signals
     action_max = {
-        'ik': 0.4,
-        'ol': 0.15
+        'ik': [0.1]*8,
+        'ol': [0.25]*8
     }
-    action_dim_map = {
-        'ik': 2,
-        'ol': 8
-    }
-    action_dim = action_dim_map[self._signal_type]
-    action_high = np.array([action_max[self._signal_type]] * action_dim)
-    self.action_space = spaces.Box(-action_high, action_high)
+    action_min = {
+        'ik': [-0.1]*8,
+        'ol': [-0.25]*8
+    }    
+
+    action_high = np.array(action_max[self._signal_type])
+    action_low = np.array(action_min[self._signal_type])    
+    self.action_space = spaces.Box(action_low, action_high)
     # For render purpose.
     self._cam_dist = 1.0
     self._cam_yaw = 3.0
     self._cam_pitch = -30
 
-    self._gait_planner = GaitPlanner("trot")
-    self._kinematics = kinematics.Kinematics()
-    self._position_control=PositionControl(signal_type=self._signal_type)
-    self.goal_reached = False
+    self._position_control=PositionControl(mode="trot",signal_type=self._signal_type)
     self._stay_still = stay_still
     self.is_terminating = False
     self._fd=open("dd.txt","w")
@@ -146,7 +144,6 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
     if self._random_init_pose==True:
       self._init_pose = np.random.uniform(np.array(self._init_pose) - np.array([0.08]*8) ,
                                           np.array(self._init_pose) + np.array([0.08]*8)) 
-    self.goal_reached = False
     self.is_terminating = False
     # self._stay_still = False
     if self._backwards is None:
@@ -156,14 +153,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
     step = 0.6
     period = 0.65
     base_x = self._base_x
-    if self.backwards:
-        step = -.3
-        period = .5
-        base_x = .0
-    # if not self._target_position or self._random_pos_target:
-    #     bound = -3 if self.backwards else 3
-    #     self._target_position = random.uniform(bound//2, bound)
-    #     self._random_pos_target = True
+
     if self._is_render and self._signal_type == 'ik':
         if self.load_ui:
             self.setup_ui(base_x, step, period)
@@ -257,9 +247,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
     """
     if self._stay_still:
         return self._init_pose,self._convert_from_leg_model(self._init_pose)    
-    # Add theta_offset and gamma_offset to mimick the bent legs.
-    action[0:NUM_LEGS] += self._theta_offset
-    action[NUM_LEGS:2 * NUM_LEGS] += self._gamma_offset
+    # Add theta_offset and gamma_offset to mimick the bent legs
     t= time.time()-self._reset_time 
     action = self._position_control.Signal(t,action)  
     # x,y=self._kinematics.solve_K([action[0],action[4]])

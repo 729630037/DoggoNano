@@ -34,6 +34,7 @@ from tf_agents.replay_buffers import reverb_utils
 from tf_agents.utils import common
 
 env_name = "MinitaurTrottingEnv-v1" # @param {type:"string"}
+# env_name = "MinitaurReactiveEnv-v1" # @param {type:"string"}
 
 # Use "num_iterations = 1e6" for better results (2 hrs)
 # 1e5 is just so this doesn't take too long (1 hr)
