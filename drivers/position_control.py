@@ -121,7 +121,7 @@ class PositionControl:
             ]) 
             signal = np.array(self._init_pose) + trotting_signal
         else:
-            signal=np.array([0.0]*8)
+            signal=np.array(self._init_pose)
         signal +=action
         return signal
 
