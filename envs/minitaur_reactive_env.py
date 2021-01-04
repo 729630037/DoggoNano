@@ -157,11 +157,11 @@ class MinitaurReactiveEnv(minitaur_gym_env.MinitaurGymEnv):
     # (eventually) allow different feedback ranges/action spaces for different signals
     action_max = {
         'ik': [0.1]*8,
-        'ol': [0.5]*4+[2.2]*4
+        'ol': [0.5]*4+[0.8]*4
     }
     action_min = {
         'ik': [-0.1]*8,
-        'ol': [-0.5]*4+[0.8]*4
+        'ol': [-0.5]*4+[-0.8]*4
     }    
 
     action_high = np.array(action_max[self._signal_type])
