@@ -46,7 +46,6 @@ class MinitaurReactiveEnv(minitaur_gym_env.MinitaurGymEnv):
   def __init__( self,
               debug=False,
               urdf_version=None,
-              energy_weight=0.005,              
               control_time_step=0.001,
               action_repeat=1,
               control_latency=0.03,
@@ -130,7 +129,6 @@ class MinitaurReactiveEnv(minitaur_gym_env.MinitaurGymEnv):
 
     super(MinitaurReactiveEnv,
           self).__init__(urdf_version=urdf_version,
-                         energy_weight=energy_weight,
                         accurate_motor_model_enabled=accurate_motor_model_enabled,
                         motor_overheat_protection=False,
                         motor_kp=motor_kp,
