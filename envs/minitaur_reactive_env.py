@@ -64,7 +64,7 @@ class MinitaurReactiveEnv(minitaur_gym_env.MinitaurGymEnv):
               log_path=None,
               target_position=None,
               backwards=None,
-              signal_type="ol",
+              signal_type="ik",
               random_init_pose=False,
               stay_still=False,
               step_frequency=2.0,
@@ -154,11 +154,11 @@ class MinitaurReactiveEnv(minitaur_gym_env.MinitaurGymEnv):
 
     # (eventually) allow different feedback ranges/action spaces for different signals
     action_max = {
-        'ik': [0.1]*8,
+        'ik': [0.3]*8,
         'ol': [0.5]*4+[0.8]*4
     }
     action_min = {
-        'ik': [-0.1]*8,
+        'ik': [-0.3]*8,
         'ol': [-0.5]*4+[-0.8]*4
     }    
 

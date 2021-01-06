@@ -67,7 +67,7 @@ class MinitaurGymEnv(gym.Env):
                 urdf_version=None,
                 distance_weight=1.0,
                 energy_weight=0.000,
-                shake_weight=0.001,
+                shake_weight=0.00,
                 drift_weight=0.01,
                 distance_limit=float("inf"),
                 observation_noise_stdev=SENSOR_NOISE_STDDEV,

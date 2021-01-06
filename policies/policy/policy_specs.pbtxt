@@ -61,20 +61,14 @@ dict_value {
               minimum {
                 dtype: DT_FLOAT
                 tensor_shape {
-                  dim {
-                    size: 8
-                  }
                 }
-                tensor_content: "\000\000\000\277\000\000\000\277\000\000\000\277\000\000\000\277\315\314L\277\315\314L\277\315\314L\277\315\314L\277"
+                float_val: -0.3
               }
               maximum {
                 dtype: DT_FLOAT
                 tensor_shape {
-                  dim {
-                    size: 8
-                  }
                 }
-                tensor_content: "\000\000\000?\000\000\000?\000\000\000?\000\000\000?\315\314L?\315\314L?\315\314L?\315\314L?"
+                float_val: 0.3
               }
             }
           }
