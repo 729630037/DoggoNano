@@ -6,7 +6,7 @@ from tf_agents.environments import suite_pybullet
 
 
 
-USE_REINFORCEMENT_LEARNING=False
+USE_REINFORCEMENT_LEARNING=True
 
 def convert_to_tensor(time_step):
     step_type=time_step[0]
