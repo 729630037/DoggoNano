@@ -7,8 +7,8 @@ import tensorflow as tf
 from tf_agents.trajectories import time_step as ts
 
 
-USE_IMU=False
-USE_REINFORCEMENT_LEARNING=False
+USE_IMU=True
+USE_REINFORCEMENT_LEARNING=True
 DEBUG=False
 
 imu=None
@@ -36,7 +36,7 @@ def handler(signum, frame):
 signal.signal(signal.SIGINT,handler)
 
 
-pos_control=PositionControl(signal_type="ol")
+pos_control=PositionControl(signal_type="ik")
 pos_control.Start()
 while pos_control.ready!=[1]*4 :
     pass
@@ -50,7 +50,9 @@ if USE_IMU:
     imu.imu_thread.start()
 
 if USE_REINFORCEMENT_LEARNING:
-    saved_policy = tf.saved_model.load("policies/policy")
+    # saved_policy = tf.saved_model.load("policies/policy")
+    # saved_policy = tf.saved_model.load("policies/reactive_policy")
+    saved_policy = tf.saved_model.load("policies/trot_policy")    
     time_step=[0,0,0,[0,0,0,0]]
 
 time_init=time.time()

@@ -147,6 +147,10 @@ class PositionControl:
             return self._init_pose
         action = np.array(self.Signal(t,action))
         action=[action[0],action[1],-action[3],-action[2],action[4],action[5],action[7],action[6]]
+        for i in range(0,4):
+            action[i]=np.clip(action[i],-0.6,0.6)
+        for i in range(4,8):
+            action[i]=np.clip(action[i],0.45,2.45)          
         self.IsValidLegLength(action)
         return action
 
