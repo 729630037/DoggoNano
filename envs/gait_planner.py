@@ -16,7 +16,7 @@ class GaitPlanner:
             self._offset = np.array([0., 0.5, 0.5, 0.])
             self.step_offset = 0.5
         else:
-            self._offset = np.array([0., 0., 0.5, 0.5])
+            self._offset = np.array([0.5, 0.5, 0, 0])
             self.step_offset = 0.5
 
     @staticmethod

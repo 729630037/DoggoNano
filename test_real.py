@@ -8,7 +8,7 @@ from tf_agents.trajectories import time_step as ts
 
 
 USE_IMU=True
-USE_REINFORCEMENT_LEARNING=True
+USE_REINFORCEMENT_LEARNING=False
 DEBUG=False
 
 imu=None
@@ -36,7 +36,7 @@ def handler(signum, frame):
 signal.signal(signal.SIGINT,handler)
 
 
-pos_control=PositionControl(signal_type="ik")
+pos_control=PositionControl(signal_type="ik",mode="reactive")
 pos_control.Start()
 while pos_control.ready!=[1]*4 :
     pass
