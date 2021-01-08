@@ -17,7 +17,7 @@ class GaitPlanner:
             self.step_offset = 0.5
         else:
             self._offset = np.array([0.5, 0.5, 0, 0])
-            self.step_offset = 0.5
+            self.step_offset = 0.35
 
     @staticmethod
     def solve_bin_factor(n, k):
