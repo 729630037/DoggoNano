@@ -44,7 +44,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
               motor_kp=1.0,
               motor_kd=0.015,
               remove_default_joint_damping=True,
-              render=True,
+              render=False,
               num_steps_to_log=1000,
               accurate_motor_model_enabled=True,
               use_signal_in_observation=False,
@@ -133,7 +133,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
     self._position_control=PositionControl(mode="trot",signal_type=self._signal_type)
     self._stay_still = stay_still
     self.is_terminating = False
-    self._fd=open("dd.txt","w")
+
 
 
   def reset(self):

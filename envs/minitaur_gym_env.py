@@ -298,7 +298,7 @@ class MinitaurGymEnv(gym.Env):
     self.viewer = None
     self._hard_reset = hard_reset  # This assignment need to be after reset()
     self.env_goal_reached = False
-         
+    self._fd=open("dd.txt","w")         
  
 
   def close(self):
@@ -423,6 +423,7 @@ class MinitaurGymEnv(gym.Env):
     if done:
       self.minitaur.Terminate()
     vel,_1,_2=self.minitaur.GetTrueXYZRate()
+    # self._fd.write(str(vel)+" "+str(self._env_step_counter)+'\n')     
     return np.array(self._get_observation()), reward, done, _
 
   def render(self, mode="rgb_array", close=False):
