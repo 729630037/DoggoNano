@@ -28,7 +28,7 @@ class PositionControl:
                 signal_type="ol",
                 mode="trot",
                 stay_still=False,
-                step_frequency=2.0,
+                step_frequency=2,
                 init_theta=0.0,
                 theta_amplitude=0.4,   #0.35rad=20.05度 0.3rad=17.19度
                 init_gamma=1.1,
@@ -129,8 +129,8 @@ class PositionControl:
         the_amp = self.theta_amplitude
         gam_amp = self.gamma_amplitude
         start_coeff = self._evaluate_gait_stage_coeff(t, [0.0])
-        the_amp *= start_coeff
-        gam_amp *= start_coeff
+        # the_amp *= start_coeff
+        # gam_amp *= start_coeff
 
         gp=(t*self.step_frequency+phase)%1
         if gp<= self.flightPercent:

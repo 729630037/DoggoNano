@@ -6,7 +6,7 @@ from tf_agents.environments import suite_pybullet
 
 
 
-USE_REINFORCEMENT_LEARNING=True
+USE_REINFORCEMENT_LEARNING=False
 
 def convert_to_tensor(time_step):
     step_type=time_step[0]
@@ -26,15 +26,15 @@ def convert_to_tensor(time_step):
 
 env_name = "MinitaurTrottingEnv-v1"
 # env_name = "MinitaurReactiveEnv-v1" 
-eval_env = suite_pybullet.load(env_name,max_episode_steps=3500)
+eval_env = suite_pybullet.load(env_name,max_episode_steps=2500)
 time_step= eval_env.reset()
 
 saved_policy=None
 if USE_REINFORCEMENT_LEARNING:
-    # saved_policy = tf.saved_model.load("policies/policy")
+    saved_policy = tf.saved_model.load("policies/greedy_policy")
     # saved_policy = tf.saved_model.load("policies/reactive_policy")
     # saved_policy = tf.saved_model.load("policies/trot_policy")       
-    saved_policy = tf.saved_model.load("policies/trot_grass_policy")
+    # saved_policy = tf.saved_model.load("policies/trot_grass_policy")
 reward=0
 
 # print(saved_policy.action(time_step))
