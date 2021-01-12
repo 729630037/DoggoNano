@@ -46,9 +46,9 @@ replay_buffer_capacity = 10000 # @param {type:"integer"}
 
 batch_size = 256   # @param {type:"integer"}
 
-critic_learning_rate = 1e-6 # @param {type:"number"}
+critic_learning_rate = 3e-6 # @param {type:"number"}
 actor_learning_rate = 1e-6 # @param {type:"number"}
-alpha_learning_rate = 1e-6 # @param {type:"number"}
+alpha_learning_rate = 3e-6 # @param {type:"number"}
 target_update_tau = 0.005 # @param {type:"number"} Factor for soft update of the target networks
 target_update_period = 1 # @param {type:"number"}  Period for soft update of the target networks.
 gamma = 0.9 # @param {type:"number"}  A discount factor for future rewards.

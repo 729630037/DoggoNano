@@ -7,9 +7,9 @@ import tensorflow as tf
 from tf_agents.trajectories import time_step as ts
 
 
-USE_IMU=True
+USE_IMU=False
 USE_REINFORCEMENT_LEARNING=False
-DEBUG=False
+DEBUG=True
 
 imu=None
 

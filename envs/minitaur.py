@@ -24,7 +24,7 @@ ROBOT_INIT_POSITION = {
     'mount': [0, 0, .85],
     'plane': [0, 0, .2],
     'grass': [0, 0, 1.98],
-    'random': [0, 0, .165],
+    'random': [0, 0, .2],
     'rack':[0, 0, 1]
 }
 
@@ -46,8 +46,8 @@ MOTOR_NAMES = [
 _CHASSIS_NAME_PATTERN = re.compile(r"chassis\D*center")
 _MOTOR_NAME_PATTERN = re.compile(r"motor\D*joint")
 _KNEE_NAME_PATTERN = re.compile(r"knee\D*")
-# SENSOR_NOISE_STDDEV = (0.01, 0.01, 0.01, 0.05, 0.05)  #MotorAngles MotorVelocities MotorTorques RollPitchYaw RollPitchYawRate
-SENSOR_NOISE_STDDEV = (0.0, 0.0, 0.0, 0.0, 0.0)
+SENSOR_NOISE_STDDEV = (0.01, 0.01, 0.01, 0.03, 0.03)  #MotorAngles MotorVelocities MotorTorques RollPitchYaw RollPitchYawRate
+# SENSOR_NOISE_STDDEV = (0.0, 0.0, 0.0, 0.0, 0.0)
 TWO_PI = 2 * math.pi
 
 

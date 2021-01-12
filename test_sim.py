@@ -6,7 +6,7 @@ from tf_agents.environments import suite_pybullet
 
 
 
-USE_REINFORCEMENT_LEARNING=True
+USE_REINFORCEMENT_LEARNING=False
 
 def convert_to_tensor(time_step):
     step_type=time_step[0]
@@ -31,10 +31,10 @@ time_step= eval_env.reset()
 
 saved_policy=None
 if USE_REINFORCEMENT_LEARNING:
-    # saved_policy = tf.saved_model.load("policies/policy")
+    saved_policy = tf.saved_model.load("policies/greedy_policy")
     # saved_policy = tf.saved_model.load("policies/reactive_policy")
     # saved_policy = tf.saved_model.load("policies/trot_policy")       
-    saved_policy = tf.saved_model.load("policies/trot_grass_policy")
+    # saved_policy = tf.saved_model.load("policies/trot_grass_policy")
 reward=0
 
 # print(saved_policy.action(time_step))
