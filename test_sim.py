@@ -26,7 +26,7 @@ def convert_to_tensor(time_step):
 
 env_name = "MinitaurTrottingEnv-v1"
 # env_name = "MinitaurReactiveEnv-v1" 
-eval_env = suite_pybullet.load(env_name,max_episode_steps=3500)
+eval_env = suite_pybullet.load(env_name,max_episode_steps=2500)
 time_step= eval_env.reset()
 
 saved_policy=None
