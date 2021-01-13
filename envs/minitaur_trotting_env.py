@@ -55,7 +55,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
               target_position=None,
               backwards=None,
               signal_type="ol",
-              random_init_pose=False,
+              random_init_pose=True,
               stay_still=False,
               step_frequency=2.0,
               init_theta=0.0,

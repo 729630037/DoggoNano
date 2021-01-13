@@ -47,6 +47,7 @@ while not time_step.is_last():
     else:
         action=[[0,0,0,0,0,0,0,0]]
     time_step = eval_env.step(action[0])
+    print(time_step[3])
     reward+=time_step[1]
 
 print("-----------------------")
