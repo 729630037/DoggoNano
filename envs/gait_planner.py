@@ -14,7 +14,7 @@ class GaitPlanner:
         self._s = False
         if mode == "trot":
             self._offset = np.array([0., 0.5, 0.5, 0.])
-            self.step_offset = 0.5
+            self.step_offset = 0.65
         else:
             self._offset = np.array([0.5, 0.5, 0, 0])
             self.step_offset = 0.35

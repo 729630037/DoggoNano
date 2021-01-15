@@ -1,15 +1,17 @@
 import signal
 import time
 
+from numpy.core.numeric import True_
+
 from drivers.imu_BNO008X_i2c import IMU      
 from drivers.position_control import PositionControl
 import tensorflow as tf
 from tf_agents.trajectories import time_step as ts
 
 
-USE_IMU=False
+USE_IMU=True
 USE_REINFORCEMENT_LEARNING=False
-DEBUG=True
+DEBUG=False
 
 imu=None
 
@@ -35,8 +37,8 @@ def handler(signum, frame):
     flag=False
 signal.signal(signal.SIGINT,handler)
 
-
-pos_control=PositionControl(signal_type="ik",mode="reactive")
+pos_control=PositionControl(signal_type="ol",mode="trot")
+# pos_control=PositionControl(signal_type="ik",mode="reactive")
 pos_control.Start()
 while pos_control.ready!=[1]*4 :
     pass
@@ -49,10 +51,13 @@ if USE_IMU:
     imu=IMU()
     imu.imu_thread.start()
 
+fd=open("dd","wb") 
+
+
 if USE_REINFORCEMENT_LEARNING:
     # saved_policy = tf.saved_model.load("policies/policy")
     # saved_policy = tf.saved_model.load("policies/reactive_policy")
-    saved_policy = tf.saved_model.load("policies/trot_policy")    
+    saved_policy = tf.saved_model.load("policies/policy")    
     time_step=[0,0,0,[0,0,0,0]]
 
 time_init=time.time()
@@ -67,19 +72,31 @@ while flag:
     else:
         action=[[0,0,0,0,0,0,0,0]]
 
-    thetagamma=pos_control.TransformActionToMotorCommand(time.time()-time_init,action[0])  
+    thetagamma=pos_control.TransformActionToMotorCommand(time.time()-time_init,action[0])
+    print(str(time.time()-time_init)+" "+str(thetagamma[4]))           
     pos_control.odrive_queue.put(thetagamma)
 
-    if USE_IMU:
-        time_step=[0,0,0,imu.imu_queue.get()]
-    else:
-        time_step=[0,0,0,[0,0,0,0]]
+    # x,y=pos_control.kinematics.solve_K([thetagamma[0],thetagamma[4]])
 
+
+    if USE_IMU:
+        time_step=[0,0.0,0.0,imu.imu_queue.get()]
+    else:
+        time_step=[0,0.0,0.0,[0.0,0.0,0.0,0.0]]
+
+    # print(time_step[3])
+
+    time_spent=time.time()-stime
+    time_to_sleep=0.03-time_spent
+    if time_to_sleep > 0:
+      time.sleep(time_to_sleep) 
+
+    time.sleep(0.01) 
     if DEBUG:
         print(time.time()-stime)
-        stime=time.time()
 
-    if time.time()-time_init>6:
+    stime=time.time()    
+    if time.time()-time_init>4:
         break
 
 pos_control.Stop()

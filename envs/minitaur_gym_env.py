@@ -298,7 +298,7 @@ class MinitaurGymEnv(gym.Env):
     self.viewer = None
     self._hard_reset = hard_reset  # This assignment need to be after reset()
     self.env_goal_reached = False
-    self._fd=open("dd.txt","w")         
+        
  
 
   def close(self):

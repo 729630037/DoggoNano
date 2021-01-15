@@ -138,7 +138,7 @@ class IMU:
         self.x_distance += self.x_vel*self.dt      
 
         # return [self.roll, self.pitch, self.roll_vel, self.pitch_vel]
-        return [self.pitch, self.roll, self.pitch_vel, self.roll_vel]
+        return [pitch, roll, self.pitch_vel, self.roll_vel]
 
 
     def ImuThread(self):
