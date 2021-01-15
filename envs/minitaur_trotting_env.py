@@ -115,11 +115,11 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
     # (eventually) allow different feedback ranges/action spaces for different signals
     action_max = {
         'ik': [0.1]*8,
-        'ol': [0.25]*8
+        'ol': [0.01]*8
     }
     action_min = {
         'ik': [-0.1]*8,
-        'ol': [-0.25]*8
+        'ol': [-0.01]*8
     }    
 
     action_high = np.array(action_max[self._signal_type])
