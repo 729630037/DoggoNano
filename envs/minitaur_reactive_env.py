@@ -169,7 +169,6 @@ class MinitaurReactiveEnv(minitaur_gym_env.MinitaurGymEnv):
     self._position_control=PositionControl(mode="gallop",signal_type=self._signal_type)
     self._stay_still = stay_still
     self.is_terminating = False
-    self._fd=open("dd.txt","w")
     self._cam_dist = 1.0
     self._cam_yaw = 30
     self._cam_pitch = -30

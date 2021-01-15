@@ -31,9 +31,9 @@ time_step= eval_env.reset()
 
 saved_policy=None
 if USE_REINFORCEMENT_LEARNING:
-    saved_policy = tf.saved_model.load("policies/greedy_policy")
+    # saved_policy = tf.saved_model.load("policies/greedy_policy")
     # saved_policy = tf.saved_model.load("policies/reactive_policy")
-    # saved_policy = tf.saved_model.load("policies/trot_policy")       
+    saved_policy = tf.saved_model.load("policies/trot_policy")       
     # saved_policy = tf.saved_model.load("policies/trot_grass_policy")
 reward=0
 
@@ -46,8 +46,9 @@ while not time_step.is_last():
         action=tf.make_ndarray(proto_tensor)
     else:
         action=[[0,0,0,0,0,0,0,0]]
+    # print(action[0])
     time_step = eval_env.step(action[0])
-    print(time_step[3])
+    # print(time_step[3])
     reward+=time_step[1]
 
 print("-----------------------")

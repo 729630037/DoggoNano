@@ -9,11 +9,11 @@ from envs.kinematics import Kinematics
 roll_d=[]
 pitch_d=[]
 t1=[]
-with open("dd",mode='r') as f:
+with open("dd.txt",mode='r') as f:
     for line in f:
         x, y= line.split(' ')
-        roll_d.append(float(x))
-        t1.append(float(y))
+        roll_d.append(float(y))
+        t1.append(float(x))
 # with open("dd1.txt",mode='r') as f1:
 #     for line in f1:
 #         x, y= line.split(' ')
