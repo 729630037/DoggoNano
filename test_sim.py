@@ -1,4 +1,4 @@
-import os,sys,inspect
+import os,sys,inspect,time
 import envs.tools.bullet_client
 import tensorflow as tf
 from tf_agents.trajectories import time_step as ts
@@ -6,7 +6,7 @@ from tf_agents.environments import suite_pybullet
 
 
 
-USE_REINFORCEMENT_LEARNING=False
+USE_REINFORCEMENT_LEARNING=True
 
 def convert_to_tensor(time_step):
     step_type=time_step[0]
@@ -33,11 +33,17 @@ saved_policy=None
 if USE_REINFORCEMENT_LEARNING:
     # saved_policy = tf.saved_model.load("policies/greedy_policy")
     # saved_policy = tf.saved_model.load("policies/reactive_policy")
-    saved_policy = tf.saved_model.load("policies/trot_policy")       
+    saved_policy = tf.saved_model.load("policies/policy")       
     # saved_policy = tf.saved_model.load("policies/trot_grass_policy")
 reward=0
 
 # print(saved_policy.action(time_step))
+
+fd=open("dd","w") 
+time_init=time.time()
+stime=time_init
+
+
 while not time_step.is_last():
     if USE_REINFORCEMENT_LEARNING: 
         time_step=convert_to_tensor(time_step)
@@ -48,8 +54,12 @@ while not time_step.is_last():
         action=[[0,0,0,0,0,0,0,0]]
     # print(action[0])
     time_step = eval_env.step(action[0])
+    fd.write(str(time.time()-stime)+" "+str(time_step[3])+'\n')   
     # print(time_step[3])
     reward+=time_step[1]
+
+    stime=time.time()  
+
 
 print("-----------------------")
 print("reward: ", reward)

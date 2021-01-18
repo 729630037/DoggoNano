@@ -238,6 +238,7 @@ class MinitaurGymEnv(gym.Env):
     self._urdf_version = urdf_version
     self._ground_id = None
     self._reflection = reflection
+    self._fd=open("dd.txt","w")        
     self._env_randomizers = convert_to_list(env_randomizer) if env_randomizer else []
     if self._is_render:
       self._pybullet_client = bc.BulletClient(connection_mode=pybullet.GUI)
@@ -298,7 +299,6 @@ class MinitaurGymEnv(gym.Env):
     self.viewer = None
     self._hard_reset = hard_reset  # This assignment need to be after reset()
     self.env_goal_reached = False
-    self._fd=open("dd.txt","w")        
  
 
   def close(self):
