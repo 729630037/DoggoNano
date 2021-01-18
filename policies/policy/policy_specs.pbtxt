@@ -56,13 +56,13 @@ dict_value {
                 dtype: DT_FLOAT
                 tensor_shape {
                 }
-                float_val: -0.25
+                float_val: -0.01
               }
               maximum {
                 dtype: DT_FLOAT
                 tensor_shape {
                 }
-                float_val: 0.25
+                float_val: 0.01
               }
             }
           }

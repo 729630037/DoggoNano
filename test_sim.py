@@ -60,6 +60,8 @@ while not time_step.is_last():
 
     stime=time.time()  
 
+    if time.time()-time_init>4:
+        break
 
 print("-----------------------")
 print("reward: ", reward)

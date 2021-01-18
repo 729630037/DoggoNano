@@ -115,11 +115,11 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
     # (eventually) allow different feedback ranges/action spaces for different signals
     action_max = {
         'ik': [0.1]*8,
-        'ol': [0.25]*8
+        'ol': [0.01]*8
     }
     action_min = {
         'ik': [-0.1]*8,
-        'ol': [-0.25]*8
+        'ol': [-0.01]*8
     }    
 
     action_high = np.array(action_max[self._signal_type])
@@ -255,7 +255,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
     for i in range(4,8):
       action[i]=np.clip(action[i],0.45,2.45)
     # x,y=self._kinematics.solve_K([action[0],action[4]])
-    # self._fd.write(str(t)+" "+str(action[0])+'\n')    
+    self._fd.write(str(t)+" "+str(action[0])+'\n')    
     return action,self._convert_from_leg_model(action)
 
   def is_fallen(self):
