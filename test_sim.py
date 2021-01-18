@@ -6,7 +6,7 @@ from tf_agents.environments import suite_pybullet
 
 
 
-USE_REINFORCEMENT_LEARNING=True
+USE_REINFORCEMENT_LEARNING=False
 
 def convert_to_tensor(time_step):
     step_type=time_step[0]
@@ -29,12 +29,11 @@ env_name = "MinitaurTrottingEnv-v1"
 eval_env = suite_pybullet.load(env_name,max_episode_steps=2500)
 time_step= eval_env.reset()
 
-saved_policy=None
-if USE_REINFORCEMENT_LEARNING:
-    # saved_policy = tf.saved_model.load("policies/greedy_policy")
-    # saved_policy = tf.saved_model.load("policies/reactive_policy")
-    saved_policy = tf.saved_model.load("policies/policy")       
-    # saved_policy = tf.saved_model.load("policies/trot_grass_policy")
+
+# saved_policy = tf.saved_model.load("policies/greedy_policy")
+# saved_policy = tf.saved_model.load("policies/reactive_policy")
+saved_policy = tf.saved_model.load("policies/policy")       
+# saved_policy = tf.saved_model.load("policies/trot_grass_policy")
 reward=0
 
 # print(saved_policy.action(time_step))
@@ -45,23 +44,31 @@ stime=time_init
 
 
 while not time_step.is_last():
-    if USE_REINFORCEMENT_LEARNING: 
-        time_step=convert_to_tensor(time_step)
-        action_step = saved_policy.action(time_step)
-        proto_tensor=tf.make_tensor_proto(action_step.action)
-        action=tf.make_ndarray(proto_tensor)
-    else:
+    time_step=convert_to_tensor(time_step)
+    action_step = saved_policy.action(time_step)
+    proto_tensor=tf.make_tensor_proto(action_step.action)
+    action=tf.make_ndarray(proto_tensor)
+    if not USE_REINFORCEMENT_LEARNING:         
         action=[[0,0,0,0,0,0,0,0]]
+
     # print(action[0])
     time_step = eval_env.step(action[0])
     fd.write(str(time.time()-stime)+" "+str(time_step[3])+'\n')   
     # print(time_step[3])
     reward+=time_step[1]
 
-    stime=time.time()  
 
-    if time.time()-time_init>4:
-        break
+    # time_spent=time.time()-stime
+    # time_to_sleep=0.004-time_spent
+    # if time_to_sleep > 0:
+    #   time.sleep(time_to_sleep) 
+
+    # print(time.time()-stime)
+    stime=time.time()
+
+
+    # if time.time()-time_init>4:
+    #     break
 
 print("-----------------------")
 print("reward: ", reward)
