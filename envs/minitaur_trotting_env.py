@@ -36,7 +36,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
   is_terminating = False
   def __init__(self,
               debug=False,
-              control_time_step=0.001,
+              control_time_step=0.005,
               action_repeat=1,
               control_latency=0.03,
               pd_latency=0.003,
@@ -44,7 +44,7 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
               motor_kp=1.0,
               motor_kd=0.015,
               remove_default_joint_damping=True,
-              render=True, 
+              render=False, 
               num_steps_to_log=1000,
               accurate_motor_model_enabled=True,
               use_signal_in_observation=False,
@@ -115,11 +115,11 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
     # (eventually) allow different feedback ranges/action spaces for different signals
     action_max = {
         'ik': [0.1]*8,
-        'ol': [0.01]*8
+        'ol': [0.1]*8
     }
     action_min = {
         'ik': [-0.1]*8,
-        'ol': [-0.01]*8
+        'ol': [-0.1]*8
     }    
 
     action_high = np.array(action_max[self._signal_type])
@@ -130,7 +130,6 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
     self._cam_yaw = 3.0
     self._cam_pitch = -30
 
-    self._position_control=PositionControl(mode="trot",signal_type=self._signal_type)
     self._stay_still = stay_still
     self.is_terminating = False
 
@@ -239,6 +238,80 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
       motor_pose[int(2 * i + 1)] = math.pi-leg_pose[NUM_LEGS + i] + (-1)**int(i / 2) * leg_pose[i]
     return motor_pose
 
+  def Signal(self, t, action):
+      if self._signal_type == 'ik':
+          return self.IK_signal(t, action)
+      elif self._signal_type == 'ol':
+          return self.OpenLoopSignal(t,action)
+
+  @staticmethod
+  def _evaluate_gait_stage_coeff(current_t, action, end_t=0.0):
+      # ramp function(斜坡函数)
+      p = 0.8
+      if end_t <= current_t <= p + end_t:
+          return current_t
+      else:
+          return 1.0
+
+  def IK_signal(self, t, action):
+      gait_stage_coeff = self._evaluate_gait_stage_coeff(t, action)
+      position = np.array([0,0,0])
+      orientation = np.array([0,0,0])
+      step_length = self.step_length * gait_stage_coeff
+      step_rotation = (self.step_rotation if self.step_rotation is not None else 0.0)
+      step_angle = self.step_angle if self.step_angle is not None else 0.0
+      step_period = self.step_period
+
+      direction = -1.0 if step_length < 0 else 1.0
+      frames = self.gait_planner.loop(t,step_length, step_angle, step_rotation, step_period, direction)
+      fr_angles, fl_angles, br_angles, bl_angles, _ = self.kinematics.solve(orientation, position, frames)
+      signal = np.array([fl_angles[0],bl_angles[0],fr_angles[0],br_angles[0],
+                  fl_angles[1],bl_angles[1],fr_angles[1],br_angles[1]])
+      signal +=action     
+      return signal
+
+  def OpenLoopSignal(self, t,action):
+      # Generates the leg trajectories for the two digonal pair of legs.
+      gamma_first, theta_first = self.GenSignal(t, 0)
+      gamma_second, theta_second = self.GenSignal(t, 0.5)
+
+      trotting_signal = np.array([
+          theta_first, theta_second, theta_second, theta_first, gamma_first,
+          gamma_second, gamma_second, gamma_first
+      ]) 
+      signal = np.array(self._init_pose) + trotting_signal
+      signal +=action
+      return signal
+
+  # def GenSignal(self, t, phase):
+  #     the_amp = self._theta_amplitude
+  #     gam_amp = self._gamma_amplitude
+  #     start_coeff = self._evaluate_gait_stage_coeff(t, [0.0])
+  #     # the_amp *= start_coeff
+  #     # gam_amp *= start_coeff
+  #     period = 1 / self._step_frequency
+  #     gamma = gam_amp * math.cos(2 * math.pi / period * t + phase)
+  #     theta = the_amp * math.sin(2 * math.pi / period * t + phase)
+
+  #     return gamma, theta
+
+  def GenSignal(self, t, phase):
+      the_amp = self._theta_amplitude
+      gam_amp = self._gamma_amplitude
+      start_coeff = self._evaluate_gait_stage_coeff(t, [0.0])
+      # the_amp *= start_coeff
+      # gam_amp *= start_coeff
+
+      gp=(t*self._step_frequency+phase)%1
+      if gp<= self._flightPercent:
+          gamma = gam_amp * math.sin(math.pi/self._flightPercent* gp)
+          theta = the_amp* math.cos(math.pi/self._flightPercent* gp) 
+      else:
+          percentBack = (gp-self._flightPercent)/(1.0-self._flightPercent)
+          gamma = (-1+gam_amp)* math.sin(math.pi*percentBack)
+          theta = the_amp * math.cos(math.pi*percentBack+math.pi)
+      return gamma, theta
+
   def _transform_action_to_motor_command(self, action):
     """
     Generates the motor commands for the given action.
@@ -248,14 +321,16 @@ class MinitaurTrottingEnv(minitaur_gym_env.MinitaurGymEnv):
     if self._stay_still:
         return self._init_pose,self._convert_from_leg_model(self._init_pose)    
     # Add theta_offset and gamma_offset to mimick the bent legs
+    # t1=self.minitaur.GetTimeSinceReset()
     t= time.time()-self._reset_time 
-    action = self._position_control.Signal(t,action)  
+    action = self.Signal(t,action)
+    self._fd.write(str(t)+" "+str(action[0])+'\n')         
     for i in range(0,4):
       action[i]=np.clip(action[i],-0.6,0.6)
     for i in range(4,8):
       action[i]=np.clip(action[i],0.45,2.45)
     # x,y=self._kinematics.solve_K([action[0],action[4]])
-    self._fd.write(str(t)+" "+str(action[0])+'\n')    
+    # self._fd.write(str(t1)+" "+str(action[0])+'\n')    
     return action,self._convert_from_leg_model(action)
 
   def is_fallen(self):

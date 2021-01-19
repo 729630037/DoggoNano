@@ -316,7 +316,7 @@ class MinitaurGymEnv(gym.Env):
       self._pybullet_client.resetSimulation()
       self._pybullet_client.setPhysicsEngineParameter(
           numSolverIterations=int(self._num_bullet_solver_iterations))
-      self._pybullet_client.setTimeStep(self._time_step)
+      self._pybullet_client.setTimeStep(0.001)
       self._ground_id = self._pybullet_client.loadURDF("%s/plane/plane.urdf" % self._urdf_root)
       if (self._reflection):
         self._pybullet_client.changeVisualShape(self._ground_id, -1, rgbaColor=[1, 1, 1, 0.8])
@@ -401,6 +401,7 @@ class MinitaurGymEnv(gym.Env):
     # Sleep, otherwise the computation takes less time than real time,
     # which will make the visualization like a fast-forward video.
     time_spent = time.time() - self._last_frame_time
+    # print(time_spent)
     self._last_frame_time = time.time()
     time_to_sleep = self.control_time_step - time_spent
     if time_to_sleep > 0:
@@ -633,7 +634,8 @@ class MinitaurGymEnv(gym.Env):
       raise ValueError("Control step should be larger than or equal to simulation step.")
     self.control_time_step = control_step
     self._time_step = simulation_step
-    self._action_repeat = int(round(control_step / simulation_step))
+    # self._action_repeat = int(round(control_step / simulation_step))
+    self._action_repeat = 1 
     self._num_bullet_solver_iterations = int((NUM_SIMULATION_ITERATION_STEPS / self._action_repeat))
     self._pybullet_client.setPhysicsEngineParameter(
         numSolverIterations=self._num_bullet_solver_iterations)

@@ -11,7 +11,7 @@ PARAM_RANGE = {
     "motor strength": [0.8, 1.2],
     # The following ranges are the physical values, in SI unit.
     "motor friction": [0, 0.05],  # Viscous damping (Nm s/rad).
-    "control step": [0.001, 0.001],  # Time inteval (s).
+    "control step": [0.004, 0.006],  # Time inteval (s).
     "latency": [0.0, 0.04],  # Time inteval (s).
     "lateral friction": [0.5, 1.25],  # Friction coefficient (dimensionless).
     "battery": [23.0, 25.8],  # Voltage (V).

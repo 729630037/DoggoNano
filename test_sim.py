@@ -53,7 +53,7 @@ while not time_step.is_last():
 
     # print(action[0])
     time_step = eval_env.step(action[0])
-    fd.write(str(time.time()-stime)+" "+str(time_step[3])+'\n')   
+    # fd.write(str(time.time()-stime)+" "+str(time_step[3])+'\n')   
     # print(time_step[3])
     reward+=time_step[1]
 
