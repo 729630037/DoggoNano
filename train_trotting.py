@@ -220,7 +220,7 @@ eval_actor = actor.Actor(
 saved_model_dir = os.path.join(tempdir, learner.POLICY_SAVED_MODEL_DIR)
 
 # 策略保护
-tf_policy_saver = policy_saver.PolicySaver(tf_agent.policy)
+# tf_policy_saver = policy_saver.PolicySaver(tf_agent.policy)
 
 # Triggers to save the agent's policy checkpoints.
 learning_triggers = [
