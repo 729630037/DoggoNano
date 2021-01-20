@@ -6,7 +6,7 @@ from tf_agents.environments import suite_pybullet
 
 
 
-USE_REINFORCEMENT_LEARNING=False
+USE_REINFORCEMENT_LEARNING=True
 
 def convert_to_tensor(time_step):
     step_type=time_step[0]
@@ -26,7 +26,7 @@ def convert_to_tensor(time_step):
 
 env_name = "MinitaurTrottingEnv-v1"
 # env_name = "MinitaurReactiveEnv-v1" 
-eval_env = suite_pybullet.load(env_name,max_episode_steps=2500)
+eval_env = suite_pybullet.load(env_name,max_episode_steps=2000)
 time_step= eval_env.reset()
 
 
