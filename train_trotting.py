@@ -17,21 +17,19 @@ from tf_agents.agents.ddpg import critic_network
 from tf_agents.agents.sac import sac_agent
 from tf_agents.agents.sac import tanh_normal_projection_network
 from tf_agents.environments import suite_pybullet
-from tf_agents.experimental.train import actor
-from tf_agents.experimental.train import learner
-from tf_agents.experimental.train import triggers
-from tf_agents.experimental.train.utils import spec_utils
-from tf_agents.experimental.train.utils import strategy_utils
-from tf_agents.experimental.train.utils import train_utils
 from tf_agents.metrics import py_metrics
 from tf_agents.networks import actor_distribution_network
 from tf_agents.policies import greedy_policy
 from tf_agents.policies import py_tf_eager_policy
 from tf_agents.policies import random_py_policy
-from tf_agents.policies import policy_saver
 from tf_agents.replay_buffers import reverb_replay_buffer
 from tf_agents.replay_buffers import reverb_utils
-from tf_agents.utils import common
+from tf_agents.train import actor
+from tf_agents.train import learner
+from tf_agents.train import triggers
+from tf_agents.train.utils import spec_utils
+from tf_agents.train.utils import strategy_utils
+from tf_agents.train.utils import train_utils
 
 env_name = "MinitaurTrottingEnv-v1" # @param {type:"string"}
 # env_name = "MinitaurReactiveEnv-v1" # @param {type:"string"}
@@ -222,7 +220,7 @@ eval_actor = actor.Actor(
 saved_model_dir = os.path.join(tempdir, learner.POLICY_SAVED_MODEL_DIR)
 
 # 策略保护
-tf_policy_saver = policy_saver.PolicySaver(tf_agent.policy)
+# tf_policy_saver = policy_saver.PolicySaver(tf_agent.policy)
 
 # Triggers to save the agent's policy checkpoints.
 learning_triggers = [
