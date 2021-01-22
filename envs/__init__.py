@@ -23,7 +23,7 @@ register(
     id='MinitaurTrottingEnv-v1',
     entry_point='envs.minitaur_trotting_env:MinitaurTrottingEnv',
     max_episode_steps=1000,
-    reward_threshold=10.0,
+    reward_threshold=1.0,
 )
 
 register(
